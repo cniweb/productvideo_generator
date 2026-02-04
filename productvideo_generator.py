@@ -9,12 +9,42 @@ from dotenv import load_dotenv
 # ==============================================================================
 # KONFIGURATION & API KEYS
 # ==============================================================================
-load_dotenv()
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_FILE = os.path.join(SCRIPT_DIR, ".env")
+load_dotenv(ENV_FILE)
+
+def _raise_env_error(message, missing=None):
+    details = ""
+    if missing:
+        missing_list = ", ".join(missing)
+        details = f"\n   Fehlende Variablen: {missing_list}"
+    raise RuntimeError(
+        "❌ Konfiguration fehlt.\n"
+        f"   {message}\n"
+        "   Lege eine .env Datei im Projektverzeichnis an oder setze die Variablen als Umgebungsvariablen."
+        f"\n   Beispiel .env:\n   GEMINI_API_KEY=...\n   CHANNEL_NAME=...\n   CHANNEL_DESCRIPTION=...\n   VIDEO_OUTPUT_DIR=..."
+        f"{details}"
+    )
+
+
+REQUIRED_ENV_VARS = [
+    "GEMINI_API_KEY",
+    "CHANNEL_NAME",
+    "CHANNEL_DESCRIPTION",
+    "VIDEO_OUTPUT_DIR",
+]
+
+if not os.path.exists(ENV_FILE):
+    _raise_env_error("Keine .env Datei gefunden.")
+
+missing_env = [name for name in REQUIRED_ENV_VARS if not os.getenv(name)]
+if missing_env:
+    _raise_env_error("Die .env Datei ist unvollständig oder leer.", missing=missing_env)
 
 def _require_env(var_name):
     value = os.getenv(var_name)
     if not value:
-        raise RuntimeError(f"Environment variable {var_name} is required but not set.")
+        _raise_env_error(f"Umgebungsvariable '{var_name}' ist nicht gesetzt.", missing=[var_name])
     return value
 
 
