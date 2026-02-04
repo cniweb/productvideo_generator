@@ -32,9 +32,8 @@ jobs:
           deps = [
               'google.genai',
               'pytrends',
-              'pydub',
-              'requests',
               'dotenv',
+              'pytest',
           ]
           for dep in deps:
               try:
@@ -44,10 +43,10 @@ jobs:
           PY
 
       - name: Ruff lint
-        run: ruff check podcast_generator.py
+        run: ruff check productvideo_generator.py
 
       - name: Byte-compile python
-        run: python -m compileall podcast_generator.py
+        run: python -m compileall productvideo_generator.py
 
       - name: Run pytest
         run: pytest -q
