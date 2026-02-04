@@ -34,12 +34,16 @@ REQUIRED_ENV_VARS = [
     "VIDEO_OUTPUT_DIR",
 ]
 
-if not os.path.exists(ENV_FILE):
-    _raise_env_error("Keine .env Datei gefunden.")
-
-missing_env = [name for name in REQUIRED_ENV_VARS if not os.getenv(name)]
-if missing_env:
-    _raise_env_error("Die .env Datei ist unvollständig oder leer.", missing=missing_env)
+def _check_env_file():
+    """Check if .env file exists and contains required variables.
+    Only called when the module is used, not at import time."""
+    # Allow either .env file OR environment variables to be set
+    if not os.path.exists(ENV_FILE) and not all(os.getenv(var) for var in REQUIRED_ENV_VARS):
+        _raise_env_error("Keine .env Datei gefunden und nicht alle Umgebungsvariablen sind gesetzt.")
+    
+    missing_env = [name for name in REQUIRED_ENV_VARS if not os.getenv(name)]
+    if missing_env:
+        _raise_env_error("Die .env Datei ist unvollständig oder leer.", missing=missing_env)
 
 def _require_env(var_name):
     value = os.getenv(var_name)
@@ -63,28 +67,55 @@ def _optional_int_env(var_name, default):
         print(f"   ⚠️ Ungültiger Wert für {var_name}, nutze Standard {default}.")
         return default
 
-# Secrets
-GEMINI_API_KEY = _require_env("GEMINI_API_KEY")
+# Global variables - initialized lazily
+GEMINI_API_KEY = None
+CHANNEL_NAME = None
+CHANNEL_DESC = None
+OUTPUT_DIR = None
+client = None
 
-# Kanal Einstellungen
-CHANNEL_NAME = _require_env("CHANNEL_NAME")
-CHANNEL_DESC = _require_env("CHANNEL_DESCRIPTION")
-
-# Pfade
-OUTPUT_DIR = _require_env("VIDEO_OUTPUT_DIR")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# Client-Setup
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-# Modelle
+# Modelle - constants can stay
 SCRIPT_MODEL = "gemini-3-pro-preview"
 VIDEO_MODEL = "veo-3.1-generate-preview"
-VIDEO_MAX_SECONDS = _optional_int_env("VIDEO_MAX_SECONDS", 10)
-VIDEO_ASPECT_RATIO = _optional_env("VIDEO_ASPECT_RATIO", "9:16")
-VIDEO_RESOLUTION = _optional_env("VIDEO_RESOLUTION", "720p")
+VIDEO_MAX_SECONDS = None
+VIDEO_ASPECT_RATIO = None
+VIDEO_RESOLUTION = None
 VIDEO_GENERATION_WAIT_MESSAGE = "   ⏳ Warte auf Video-Generierung..."
 VIDEO_NO_DATA_ERROR_MESSAGE = "API lieferte keine Video-Daten zurück."
+
+_initialized = False
+
+def _initialize_config():
+    """Initialize configuration and API client. Called lazily on first use."""
+    global GEMINI_API_KEY, CHANNEL_NAME, CHANNEL_DESC, OUTPUT_DIR, client
+    global VIDEO_MAX_SECONDS, VIDEO_ASPECT_RATIO, VIDEO_RESOLUTION, _initialized
+    
+    if _initialized:
+        return
+    
+    _check_env_file()
+    
+    # Secrets
+    GEMINI_API_KEY = _require_env("GEMINI_API_KEY")
+    
+    # Kanal Einstellungen
+    CHANNEL_NAME = _require_env("CHANNEL_NAME")
+    CHANNEL_DESC = _require_env("CHANNEL_DESCRIPTION")
+    
+    # Pfade
+    OUTPUT_DIR = _require_env("VIDEO_OUTPUT_DIR")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
+    # Client-Setup (only if not already set, e.g., in tests)
+    if client is None:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    
+    # Video configuration
+    VIDEO_MAX_SECONDS = _optional_int_env("VIDEO_MAX_SECONDS", 10)
+    VIDEO_ASPECT_RATIO = _optional_env("VIDEO_ASPECT_RATIO", "9:16")
+    VIDEO_RESOLUTION = _optional_env("VIDEO_RESOLUTION", "720p")
+    
+    _initialized = True
 
 
 def _debug_print_models(models, limit=None):
@@ -134,6 +165,7 @@ def _list_video_models():
 
 class ProductVideoGenerator:
     def __init__(self, topic):
+        _initialize_config()  # Ensure configuration is loaded
         self.topic = topic
         self.script_content = ""
         self.video_path = ""
@@ -403,6 +435,7 @@ class ProductVideoGenerator:
 # MAIN
 # ==============================================================================
 if __name__ == "__main__":
+    _initialize_config()  # Initialize before using config variables
     print(f"--- {CHANNEL_NAME.upper()} GENERATOR (VEO) ---")
     
     # Eingabe lesen (funktioniert auch via Pipe aus run.sh)
