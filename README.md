@@ -4,6 +4,23 @@ Dieser Generator erstellt automatisch verkaufsfördernde Produktvideos unter Ver
 
 Im Gegensatz zum Podcast-Generator wird hier **alles** (Video, Audio, Musik) direkt vom Veo-Modell generiert.
 
+## Onboarding für neue Entwickler
+
+Wenn du neu im Projekt bist, gehe in dieser Reihenfolge vor:
+
+1. **Projektüberblick lesen:** Diese README für Setup, Ablauf und Output.
+2. **Beitragsprozess lesen:** [CONTRIBUTING.md](CONTRIBUTING.md) für lokale Checks, PR-Workflow und Projektkonventionen.
+3. **Agentenregeln lesen:** [AGENTS.md](AGENTS.md) für Copilot/AI-Guardrails und Arbeitsweise im Repository.
+
+Schnellstart:
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install -r requirements.txt
+./run.sh "Smarte Kaffeemaschine"
+```
+
 ## Voraussetzungen
 
 - Python 3.10+
@@ -50,3 +67,4 @@ Die Ergebnisse landen im Ordner \`finished_videos\`:
 ## Hinweise für Agents / Copilot
 
 Siehe [AGENTS.md](AGENTS.md) für Leitplanken, Arbeitsweise und Qualitätssicherung.
+Für Contributor-Prozess und lokale Validierung siehe [CONTRIBUTING.md](CONTRIBUTING.md).
