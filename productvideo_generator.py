@@ -42,11 +42,13 @@ MIN_TOPIC_LENGTH = 3
 def _check_env_file():
     """Check if .env file exists and contains required variables.
     Only called when the module is used, not at import time."""
-    # Allow either .env file OR environment variables to be set
-    if not os.path.exists(ENV_FILE) and not all(os.getenv(var) for var in REQUIRED_ENV_VARS):
-        _raise_env_error("Keine .env Datei gefunden und nicht alle Umgebungsvariablen sind gesetzt.")
-    
     missing_env = [name for name in REQUIRED_ENV_VARS if not os.getenv(name)]
+    # Allow either .env file OR environment variables to be set
+    if not os.path.exists(ENV_FILE) and missing_env:
+        _raise_env_error(
+            "Keine .env Datei gefunden und nicht alle Umgebungsvariablen sind gesetzt.",
+            missing=missing_env,
+        )
     if missing_env:
         _raise_env_error("Die .env Datei ist unvollständig oder leer.", missing=missing_env)
 
