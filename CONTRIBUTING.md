@@ -55,6 +55,7 @@ Use the same checks as CI:
 
 ```bash
 python -m ruff check productvideo_generator.py
+python -m mdformat --check **/*.md
 python -m compileall productvideo_generator.py
 python -m pytest -q
 ```
@@ -86,6 +87,6 @@ Or run the combined local flow:
 Before opening a PR:
 
 1. Run lint + tests locally.
-2. Keep changes minimal and scoped to the issue.
-3. Update docs when behavior, commands, or configuration changed.
-4. Include a clear summary of what changed and how it was validated.
+1. Keep changes minimal and scoped to the issue.
+1. Update docs when behavior, commands, or configuration changed.
+1. Include a clear summary of what changed and how it was validated.

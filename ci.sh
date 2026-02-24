@@ -4,6 +4,7 @@ set -euo pipefail
 
 python_bin="python3"
 ruff_version="0.6.8"
+mdformat_version="0.7.17"
 
 # Virtuelle Umgebung sicherstellen
 if [[ ! -d .venv ]]; then
@@ -19,10 +20,15 @@ fi
 $python_bin -m pip install --upgrade pip
 $python_bin -m pip install -r requirements.txt
 $python_bin -m pip install ruff=="$ruff_version"
+$python_bin -m pip install mdformat=="$mdformat_version"
 
 # Linting
 $python_bin -m ruff check --fix productvideo_generator.py
 $python_bin -m ruff check productvideo_generator.py
+
+# Markdown-Linting
+shopt -s globstar
+$python_bin -m mdformat --check **/*.md
 
 # Import-Prüfung
 $python_bin - <<'PY'
