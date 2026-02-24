@@ -1,6 +1,10 @@
-import os
+import argparse
 import json
+import os
+import re
+import sys
 import time
+import unicodedata
 from pytrends.request import TrendReq
 from google import genai
 from google.genai import types
@@ -20,10 +24,9 @@ def _raise_env_error(message, missing=None):
         details = f"\n   Fehlende Variablen: {missing_list}"
     raise RuntimeError(
         "❌ Konfiguration fehlt.\n"
-        f"   {message}\n"
-        "   Lege eine .env Datei im Projektverzeichnis an oder setze die Variablen als Umgebungsvariablen."
-        f"\n   Beispiel .env:\n   GEMINI_API_KEY=...\n   CHANNEL_NAME=...\n   CHANNEL_DESCRIPTION=...\n   VIDEO_OUTPUT_DIR=..."
-        f"{details}"
+        f"   {message}"
+        f"{details}\n"
+        "   Nächster Schritt: Kopiere .env.example nach .env und setze die Variablen."
     )
 
 
@@ -33,6 +36,8 @@ REQUIRED_ENV_VARS = [
     "CHANNEL_DESCRIPTION",
     "VIDEO_OUTPUT_DIR",
 ]
+
+MIN_TOPIC_LENGTH = 3
 
 def _check_env_file():
     """Check if .env file exists and contains required variables.
@@ -66,6 +71,19 @@ def _optional_int_env(var_name, default):
     except ValueError:
         print(f"   ⚠️ Ungültiger Wert für {var_name}, nutze Standard {default}.")
         return default
+
+
+def normalize_topic(topic, min_length=MIN_TOPIC_LENGTH, fallback="topic"):
+    cleaned = "" if topic is None else str(topic).strip()
+    if not cleaned:
+        return fallback
+    normalized = unicodedata.normalize("NFKD", cleaned)
+    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    normalized = re.sub(r"[^\w]+", "_", normalized, flags=re.UNICODE)
+    normalized = re.sub(r"_+", "_", normalized).strip("_")
+    if len(normalized) < min_length:
+        return fallback
+    return normalized
 
 # Global variables - initialized lazily
 GEMINI_API_KEY = None
@@ -114,6 +132,16 @@ def _initialize_config():
     VIDEO_MAX_SECONDS = _optional_int_env("VIDEO_MAX_SECONDS", 10)
     VIDEO_ASPECT_RATIO = _optional_env("VIDEO_ASPECT_RATIO", "9:16")
     VIDEO_RESOLUTION = _optional_env("VIDEO_RESOLUTION", "720p")
+
+    used_defaults = []
+    if os.getenv("VIDEO_MAX_SECONDS") in (None, ""):
+        used_defaults.append(f"VIDEO_MAX_SECONDS={VIDEO_MAX_SECONDS}")
+    if os.getenv("VIDEO_ASPECT_RATIO") in (None, ""):
+        used_defaults.append(f"VIDEO_ASPECT_RATIO={VIDEO_ASPECT_RATIO}")
+    if os.getenv("VIDEO_RESOLUTION") in (None, ""):
+        used_defaults.append(f"VIDEO_RESOLUTION={VIDEO_RESOLUTION}")
+    if used_defaults:
+        print(f"   ℹ️ Nutze Standardwerte: {', '.join(used_defaults)}")
     
     _initialized = True
 
@@ -169,6 +197,7 @@ class ProductVideoGenerator:
         self.topic = topic
         self.script_content = ""
         self.video_path = ""
+        self.script_path = ""
         print(f"🚀 Starte Videoproduktion für Kanal '{CHANNEL_NAME}'")
         print(f"   Thema: '{topic}'")
 
@@ -257,10 +286,12 @@ class ProductVideoGenerator:
             self.script_content = response.text
             
             # Speichere Skript zur Kontrolle
-            script_filename = f"{self.topic.replace(' ', '_')}_script.txt"
+            normalized_topic = normalize_topic(self.topic)
+            script_filename = f"{normalized_topic}_script.txt"
             script_path = os.path.join(OUTPUT_DIR, script_filename)
             with open(script_path, "w", encoding="utf-8") as f:
                 f.write(self.script_content)
+            self.script_path = script_path
             
             print("   -> Skript erstellt.")
         except Exception as e:
@@ -362,7 +393,8 @@ class ProductVideoGenerator:
         veo_prompt = self._build_veo_prompt()
 
         try:
-            filename = f"{self.topic.replace(' ', '_')}.mp4"
+            normalized_topic = normalize_topic(self.topic)
+            filename = f"{normalized_topic}.mp4"
             self.video_path = os.path.join(OUTPUT_DIR, filename)
 
             generated_video = self._run_video_generation(
@@ -416,20 +448,73 @@ class ProductVideoGenerator:
         except Exception:
             data = {"title": self.topic, "description": self.script_content[:200]}
 
+        normalized_topic = normalize_topic(self.topic)
+        script_path = self.script_path or os.path.join(
+            OUTPUT_DIR,
+            f"{normalized_topic}_script.txt",
+        )
+        video_path = self.video_path or os.path.join(
+            OUTPUT_DIR,
+            f"{normalized_topic}.mp4",
+        )
         meta = {
             "channel": CHANNEL_NAME,
             "topic": self.topic,
-            "video_file": self.video_path,
-            "script_file": os.path.join(OUTPUT_DIR, f"{self.topic.replace(' ', '_')}_script.txt"),
+            "video_file": video_path,
+            "script_file": script_path,
             "youtube_title": data.get("title", f"Review: {self.topic}"),
             "youtube_description": data.get("description", ""),
             "generated_at": time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        meta_path = os.path.join(OUTPUT_DIR, f"{self.topic.replace(' ', '_')}_meta.json")
+        meta_path = os.path.join(OUTPUT_DIR, f"{normalized_topic}_meta.json")
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=4, ensure_ascii=False)
         print("   -> Fertig.")
+
+
+def _raise_input_error(reason):
+    raise RuntimeError(
+        "❌ Ungültiger Topic-Input.\n"
+        f"   {reason}\n"
+        f"   Nächster Schritt: Gib ein Produkt/Thema mit mindestens {MIN_TOPIC_LENGTH} Zeichen an "
+        "(z. B. \"Smarte Kaffeemaschine\")."
+    )
+
+
+def _validate_topic_input(topic):
+    if not topic or len(topic.strip()) < MIN_TOPIC_LENGTH:
+        _raise_input_error(f"Topic muss mindestens {MIN_TOPIC_LENGTH} Zeichen haben.")
+
+
+def _resolve_topic_from_cli(argv=None):
+    parser = argparse.ArgumentParser(description="Product Video Generator (Veo)")
+    parser.add_argument(
+        "topic",
+        nargs="?",
+        help=f"Produkt/Thema (min. {MIN_TOPIC_LENGTH} Zeichen)",
+    )
+    args = parser.parse_args(argv)
+
+    if args.topic is not None:
+        topic = args.topic.strip()
+        _validate_topic_input(topic)
+        return topic
+
+    if not sys.stdin.isatty():
+        stdin_topic = sys.stdin.read().strip()
+        _validate_topic_input(stdin_topic)
+        return stdin_topic
+
+    prompt = (
+        f"Produkt/Thema (min. {MIN_TOPIC_LENGTH} Zeichen, z. B. \"Smarte Kaffeemaschine\"): "
+    )
+    try:
+        topic = input(prompt).strip()
+    except EOFError:
+        topic = ""
+    _validate_topic_input(topic)
+    return topic
 
 # ==============================================================================
 # MAIN
@@ -437,12 +522,9 @@ class ProductVideoGenerator:
 if __name__ == "__main__":
     _initialize_config()  # Initialize before using config variables
     print(f"--- {CHANNEL_NAME.upper()} GENERATOR (VEO) ---")
-    
-    # Eingabe lesen (funktioniert auch via Pipe aus run.sh)
-    try:
-        topic = input("Produkt/Thema (Leer lassen für Trend): ").strip()
-    except EOFError:
-        topic = ""
+
+    # Eingabe lesen (CLI-Argument > stdin > Prompt)
+    topic = _resolve_topic_from_cli()
 
     gen = ProductVideoGenerator(topic)
 
