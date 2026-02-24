@@ -61,7 +61,7 @@ Each task was committed atomically:
 2. **Task 2: Einheitliche Normalisierung fuer Output-Dateinamen** - `5d9d2ed` (test)
 3. **Task 3: Klarere ENV-Fehlermeldungen und Fail-fast-Check** - `acafd8b` (fix)
 
-**Plan metadata:** Pending (docs: complete plan)
+**Plan metadata:** 0caa6ed (docs(01-01): add execution summary)
 
 ## Files Created/Modified
 - `productvideo_generator.py` - CLI-Input-Flow, Normalisierung und ENV-Fehlertexte.
