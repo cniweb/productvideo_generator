@@ -213,5 +213,11 @@ google_cloud_credentials.json
 temp_assets/
 finished_videos/
 
+# GSD planning (local only)
+.planning/
+!.planning/
+!.planning/research/
+!.planning/research/**
+
 # macOS system files
 .DS_Store
