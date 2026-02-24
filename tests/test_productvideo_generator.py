@@ -142,3 +142,34 @@ def test_research_trends_fallback(tmp_path, monkeypatch):
     topic = gen.research_trends()
 
     assert topic == "TestProdukt"
+
+
+def test_normalize_topic_handles_special_chars(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    normalized = pv.normalize_topic("  Smarte/ Kaffee   Maschine!  ")
+    assert normalized == "Smarte_Kaffee_Maschine"
+
+
+def test_normalize_topic_falls_back_for_short_input(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    normalized = pv.normalize_topic("x")
+    assert normalized == "topic"
+
+
+def test_check_env_file_missing_vars_message(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    monkeypatch.setenv("CHANNEL_NAME", "")
+    monkeypatch.setattr(pv.os.path, "exists", lambda _: True)
+
+    try:
+        pv._check_env_file()
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("_check_env_file sollte fehlende ENV-Keys melden")
+
+    assert "Fehlende Variablen: CHANNEL_NAME" in message
+    assert "Nächster Schritt: Kopiere .env.example nach .env" in message
