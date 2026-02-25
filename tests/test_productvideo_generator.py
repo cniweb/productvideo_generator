@@ -1,5 +1,7 @@
 import importlib
+import io
 import json
+import sys
 from types import SimpleNamespace
 
 
@@ -90,6 +92,11 @@ class DummyTrendReq:
         return {"TestProdukt": {"top": None}}
 
 
+class DummyStdin(io.StringIO):
+    def isatty(self):
+        return False
+
+
 def test_generate_sales_script_writes_file(tmp_path, monkeypatch):
     pv = _load_module(tmp_path, monkeypatch)
     pv.client = DummyClient(pv)
@@ -173,3 +180,51 @@ def test_check_env_file_missing_vars_message(tmp_path, monkeypatch):
 
     assert "Fehlende Variablen: CHANNEL_NAME" in message
     assert "Nächster Schritt: Kopiere .env.example nach .env" in message
+
+
+def test_resolve_topic_prefers_cli_argument_over_stdin(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    monkeypatch.setattr(sys, "stdin", DummyStdin("PipeTopic"))
+    topic = pv._resolve_topic_from_cli(["ArgTopic"])
+
+    assert topic == "ArgTopic"
+
+
+def test_resolve_topic_reads_stdin_when_no_arg(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    monkeypatch.setattr(sys, "stdin", DummyStdin("PipeTopic"))
+    topic = pv._resolve_topic_from_cli([])
+
+    assert topic == "PipeTopic"
+
+
+def test_resolve_topic_rejects_short_stdin(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    monkeypatch.setattr(sys, "stdin", DummyStdin("x"))
+    try:
+        pv._resolve_topic_from_cli([])
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Zu kurzer stdin-Input sollte fehlschlagen")
+
+    assert "Ungültiger Topic-Input" in message
+
+
+def test_initialize_config_creates_output_dir(tmp_path, monkeypatch):
+    output_dir = tmp_path / "outputs" / "nested"
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("CHANNEL_NAME", "Test Channel")
+    monkeypatch.setenv("CHANNEL_DESCRIPTION", "Test Desc")
+    monkeypatch.setenv("VIDEO_OUTPUT_DIR", str(output_dir))
+    monkeypatch.setenv("VIDEO_MODEL", "test-video-model")
+    monkeypatch.setenv("VIDEO_MAX_SECONDS", "8")
+
+    import productvideo_generator as pv
+    pv = importlib.reload(pv)
+    pv._initialize_config()
+
+    assert output_dir.exists()
