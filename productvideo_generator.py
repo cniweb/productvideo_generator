@@ -264,7 +264,7 @@ class ProductVideoGenerator:
     # --------------------------------------------------------------------------
     def generate_sales_script(self):
         """Erstellt ein verkaufsoptimiertes Skript."""
-        print(f"✍️  2. Erstelle Produkt-Skript für '{self.topic}'...")
+        print(f"✍️ 2. Erstelle Produkt-Skript für '{self.topic}'...")
 
         prompt = f"""
         Du bist der Produzent des Videokanals '{CHANNEL_NAME}'. Beschreibung: '{CHANNEL_DESC}'.
