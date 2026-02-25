@@ -1,28 +1,28 @@
-# Contributing to productvideo_generator
+# Beitragen zu productvideo_generator
 
-Thank you for contributing.
+Vielen Dank für deinen Beitrag.
 
-## Prerequisites
+## Voraussetzungen
 
 - Python 3.10+
-- A valid `GEMINI_API_KEY` with access to Gemini/Veo models
-- A configured `.env` file in the repository root
+- Ein gültiger `GEMINI_API_KEY` mit Zugriff auf Gemini/Veo-Modelle
+- Eine konfigurierte `.env`-Datei im Repository-Root
 
-Required `.env` variables:
+Erforderliche `.env`-Variablen:
 
 - `GEMINI_API_KEY`
 - `CHANNEL_NAME`
 - `CHANNEL_DESCRIPTION`
 - `VIDEO_OUTPUT_DIR`
 
-Optional video settings:
+Optionale Video-Einstellungen:
 
 - `VIDEO_MODEL`
 - `VIDEO_MAX_SECONDS`
 - `VIDEO_ASPECT_RATIO`
 - `VIDEO_RESOLUTION`
 
-## Local setup
+## Lokales Setup
 
 ```bash
 python -m venv .venv
@@ -31,27 +31,27 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Or use:
+Oder nutze:
 
 ```bash
 ./setup.sh
 ```
 
-## Run locally
+## Lokal ausführen
 
 ```bash
 ./run.sh "Smarte Kaffeemaschine"
 ```
 
-Without an explicit topic:
+Ohne explizites Thema:
 
 ```bash
 ./run.sh
 ```
 
-## Lint, compile, and test
+## Lint, Kompilieren und Tests
 
-Use the same checks as CI:
+Nutze dieselben Checks wie in CI:
 
 ```bash
 python -m ruff check productvideo_generator.py
@@ -60,33 +60,33 @@ python -m compileall productvideo_generator.py
 python -m pytest -q
 ```
 
-Run a single test:
+Einen einzelnen Test ausführen:
 
 ```bash
 python -m pytest -q tests/test_productvideo_generator.py::test_generate_sales_script_writes_file
 ```
 
-Or run the combined local flow:
+Oder den kombinierten lokalen Ablauf:
 
 ```bash
 ./ci.sh
 ```
 
-## Repository-specific conventions
+## Repository-spezifische Konventionen
 
-- Keep user-facing text in German (scripts, titles, descriptions).
-- Keep script style sales/conversion oriented (Hook, Solution, Benefits, CTA).
-- Keep visual cues in parentheses in the generated script where useful for Veo prompting.
-- Do not add ffmpeg or external TTS/mixing: video, audio, and music are generated via Veo.
-- Keep trend behavior DACH-focused (current implementation uses `geo='DE'` for trend lookup).
-- Keep config `.env`-driven and never hardcode secrets.
-- Prefer resilient fallback behavior for external API issues, especially around trend lookup and model availability.
+- Nutzerseitiger Text bleibt auf Deutsch (Skripte, Titel, Beschreibungen).
+- Skriptstil bleibt sales-/conversion-orientiert (Hook, Solution, Benefits, CTA).
+- Visuelle Hinweise in Klammern im generierten Skript verwenden, wenn es für Veo-Prompts hilft.
+- Kein ffmpeg oder externes TTS/Mixing hinzufügen: Video, Audio und Musik werden via Veo generiert.
+- Trendverhalten bleibt DACH-fokussiert (aktuell `geo='DE'` für Trend-Abfrage).
+- Konfiguration bleibt `.env`-getrieben und Secrets werden nie hardcodiert.
+- Bevorzuge robuste Fallbacks bei externen API-Problemen, besonders bei Trends und Modell-Verfügbarkeit.
 
-## Pull request checklist
+## Pull-Request-Checkliste
 
-Before opening a PR:
+Vor dem Öffnen eines PRs:
 
-1. Run lint + tests locally.
-1. Keep changes minimal and scoped to the issue.
-1. Update docs when behavior, commands, or configuration changed.
-1. Include a clear summary of what changed and how it was validated.
+1. Lint + Tests lokal ausführen.
+1. Änderungen minimal und auf das Thema begrenzen.
+1. Doku aktualisieren, wenn Verhalten, Kommandos oder Konfiguration angepasst wurden.
+1. Eine klare Zusammenfassung geben, was geändert wurde und wie es validiert wurde.
