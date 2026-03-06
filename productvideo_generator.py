@@ -35,6 +35,8 @@ REQUIRED_ENV_VARS = [
     "CHANNEL_NAME",
     "CHANNEL_DESCRIPTION",
     "VIDEO_OUTPUT_DIR",
+    "VIDEO_MODEL",
+    "VIDEO_FALLBACK_MODEL",
 ]
 
 MIN_TOPIC_LENGTH = 3
@@ -96,7 +98,8 @@ client = None
 
 # Modelle - constants can stay
 SCRIPT_MODEL = "gemini-3-pro-preview"
-VIDEO_MODEL = "veo-3.1-generate-preview"
+VIDEO_MODEL = None
+VIDEO_FALLBACK_MODEL = None
 VIDEO_MAX_SECONDS = None
 VIDEO_ASPECT_RATIO = None
 VIDEO_RESOLUTION = None
@@ -108,6 +111,7 @@ _initialized = False
 def _initialize_config():
     """Initialize configuration and API client. Called lazily on first use."""
     global GEMINI_API_KEY, CHANNEL_NAME, CHANNEL_DESC, OUTPUT_DIR, client
+    global VIDEO_MODEL, VIDEO_FALLBACK_MODEL
     global VIDEO_MAX_SECONDS, VIDEO_ASPECT_RATIO, VIDEO_RESOLUTION, _initialized
     
     if _initialized:
@@ -131,6 +135,8 @@ def _initialize_config():
         client = genai.Client(api_key=GEMINI_API_KEY)
     
     # Video configuration
+    VIDEO_MODEL = _require_env("VIDEO_MODEL")
+    VIDEO_FALLBACK_MODEL = _require_env("VIDEO_FALLBACK_MODEL")
     VIDEO_MAX_SECONDS = _optional_int_env("VIDEO_MAX_SECONDS", 10)
     VIDEO_ASPECT_RATIO = _optional_env("VIDEO_ASPECT_RATIO", "9:16")
     VIDEO_RESOLUTION = _optional_env("VIDEO_RESOLUTION", "720p")
@@ -365,13 +371,24 @@ class ProductVideoGenerator:
 
     def _retry_with_fallback_model(self, video_model, veo_prompt):
         """Versucht die Generierung mit einem Fallback-Modell."""
+        fallback_candidates = [
+            VIDEO_FALLBACK_MODEL,
+        ]
+
         candidates = _list_video_models()
-        if not candidates:
-            return False
-        print(f"   💡 Verfügbare Video-Modelle: {', '.join(candidates)}")
-        fallback = candidates[0]
-        if fallback == video_model:
-            print("   💡 Setze VIDEO_MODEL in .env auf eines der Modelle.")
+        if candidates:
+            print(f"   💡 Verfügbare Video-Modelle: {', '.join(candidates)}")
+            for candidate in candidates:
+                if candidate not in fallback_candidates:
+                    fallback_candidates.append(candidate)
+
+        fallback = None
+        for candidate in fallback_candidates:
+            if candidate and candidate != video_model:
+                fallback = candidate
+                break
+        if fallback is None:
+            print("   💡 Setze VIDEO_MODEL/VIDEO_FALLBACK_MODEL in .env auf verfügbare Modelle.")
             return False
 
         print(f"   🔁 Erneuter Versuch mit: {fallback}")
@@ -384,7 +401,7 @@ class ProductVideoGenerator:
             return True
         except Exception as retry_exc:
             print(f"   ❌ Erneuter Versuch fehlgeschlagen: {retry_exc}")
-        print("   💡 Setze VIDEO_MODEL in .env auf eines der Modelle.")
+        print("   💡 Setze VIDEO_MODEL/VIDEO_FALLBACK_MODEL in .env auf verfügbare Modelle.")
         return False
 
     def generate_video_with_veo(self):
@@ -419,9 +436,8 @@ class ProductVideoGenerator:
 
         except Exception as e:
             print(f"   ❌ Veo Generierung Fehler: {e}")
-            if "NOT_FOUND" in str(e):
-                if self._retry_with_fallback_model(video_model, veo_prompt):
-                    return
+            if self._retry_with_fallback_model(video_model, veo_prompt):
+                return
 
     # --------------------------------------------------------------------------
     # 4. METADATEN
