@@ -1,173 +1,170 @@
 # AGENTS.md
 
-# Guardrails and repo guidance for coding agents
+Repository guidance for agentic coding assistants working on
+`productvideo_generator`.
 
-This file summarizes how to work in this repository.
-It is intended for AI agents and human contributors.
-
-## Quick repo context
+## 1) Quick project context
 
 - Project: Product Video Generator (Veo Edition)
-- Language: Python
+- Language/runtime: Python 3.10+
 - Main entrypoint: `productvideo_generator.py`
-- Tests: `tests/test_productvideo_generator.py`
-- Primary flow: trends -> script -> video -> metadata
+- Main test file: `tests/test_productvideo_generator.py`
+- Core flow: `research_trends()` -> `generate_sales_script()` ->
+  `generate_video_with_veo()` -> `generate_metadata()`
+- Output artifacts per topic:
+  - `<normalized_topic>_script.txt`
+  - `<normalized_topic>.mp4`
+  - `<normalized_topic>_meta.json`
 
-## Commands: build, lint, test
+## 2) Setup and local commands
+
+### Environment setup
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+### Build/lint/test commands (use these first)
 
 - Install deps: `python -m pip install -r requirements.txt`
-- Lint (same target as CI): `python -m ruff check productvideo_generator.py`
+- Lint target used in CI: `python -m ruff check productvideo_generator.py`
 - Compile/syntax check: `python -m compileall productvideo_generator.py`
-- Full test suite: `python -m pytest -q`
-- Single test: `python -m pytest -q tests/test_productvideo_generator.py::test_generate_sales_script_writes_file`
-- Combined local CI flow: `./ci.sh`
+- Run full tests: `python -m pytest -q`
+- Run a single test (important):
+  `python -m pytest -q tests/test_productvideo_generator.py::test_generate_sales_script_writes_file`
+- Run local CI helper script: `./ci.sh`
 - End-to-end run: `./run.sh "Smarte Kaffeemaschine"`
 
-## Setup flow
+### Notes about `ci.sh`
 
-- Create venv: `python -m venv .venv`
-- Activate (Windows Git Bash): `source .venv/Scripts/activate`
-- Upgrade pip: `python -m pip install --upgrade pip`
-- Install deps: `python -m pip install -r requirements.txt`
-- Copy env template: `cp .env.example .env` (then fill in keys)
-- Run end-to-end: `./run.sh "Smarte Kaffeemaschine"`
+- Creates and activates `.venv` if needed.
+- Runs `ruff check --fix` and then `ruff check`.
+- Runs markdown format check via `mdformat --check **/*.md`.
+- Runs import sanity check and then pytest.
 
-## Copilot instructions (must follow)
+## 3) CI behavior
 
-These rules are from `.github/copilot-instructions.md`.
+- Workflow file: `.github/workflows/ci.yml`
+- CI runs on Ubuntu with Python 3.13.
+- CI installs `ruff==0.6.8`.
+- CI sequence: install deps -> static import check -> ruff -> compileall -> pytest.
+- Keep local changes compatible with both local scripts and CI workflow behavior.
 
-- Keep user-facing content in German by default.
-- Keep script style sales/conversion oriented (Hook, Solution, Benefits, CTA).
-- Script text should be spoken prose with short visual cues in parentheses.
-- Pipeline scope is product/sales videos (not podcast flow).
-- Do not introduce ffmpeg or external TTS/mixing; Veo handles audio/music/video.
-- Keep trend behavior DACH-focused (geo='DE').
-- Preserve `.env`-driven config; never hardcode secrets.
-- Prefer resilient fallback behavior for external API issues.
+## 4) Environment variables and config
 
-## Cursor rules
-
-- No Cursor rules found in `.cursor/rules/` or `.cursorrules`.
-
-## Project structure and runtime flow
-
-- `productvideo_generator.py` contains configuration loading, client setup, and the pipeline.
-- The main class is `ProductVideoGenerator`.
-- Steps:
-  1. `research_trends()` using Google Trends (pytrends, geo DE)
-  1. `generate_sales_script()` using Gemini text model
-  1. `generate_video_with_veo()` using Veo video model
-  1. `generate_metadata()` to JSON
-
-## Environment configuration
-
-Required environment variables (via `.env` or OS env):
+Required env vars:
 
 - `GEMINI_API_KEY`
 - `CHANNEL_NAME`
 - `CHANNEL_DESCRIPTION`
 - `VIDEO_OUTPUT_DIR`
-  Optional video settings:
+
+Optional env vars:
+
 - `VIDEO_MODEL`
 - `VIDEO_MAX_SECONDS`
 - `VIDEO_ASPECT_RATIO`
 - `VIDEO_RESOLUTION`
-  Never commit secrets or `.env`.
 
-## Output files
+Rules:
 
-- Outputs are written to `VIDEO_OUTPUT_DIR`.
-- File naming is based on normalized topic:
-  - `<topic>_script.txt` (sales script)
-  - `<topic>.mp4` (generated video)
-  - `<topic>_meta.json` (metadata)
+- Never hardcode secrets.
+- Never commit `.env` or credentials.
+- Keep `.env`-driven configuration model intact.
 
-## Code style guidelines
+## 5) Copilot rules (from `.github/copilot-instructions.md`)
+
+These are repository rules and must be preserved in code changes:
+
+- User-facing content should be German by default.
+- Script style is sales/conversion focused (Hook, Solution, Benefits, CTA).
+- Script output should be spoken prose with short visual cues in parentheses.
+- Scope is product/sales video generation (not podcast flow).
+- Do not add ffmpeg or external TTS/mixing pipelines.
+- Keep trend behavior DACH-focused (current implementation uses `geo='DE'`).
+- Prefer resilient fallback behavior for external API outages/errors.
+
+## 6) Cursor rules status
+
+- No Cursor rules were found in `.cursor/rules/`.
+- No `.cursorrules` file was found.
+
+## 7) Code style guidelines
 
 ### Imports
 
-- Use standard library imports first, then third-party, then local modules.
-- One import per line, no wildcard imports.
-- Keep import ordering stable; prefer explicit imports.
+- Standard library imports first, third-party second, local imports last.
+- Keep one import per line when practical.
+- Avoid wildcard imports.
+- Prefer explicit imports and stable ordering.
 
 ### Formatting
 
-- Follow Ruff defaults; keep line lengths reasonable.
+- Follow Ruff-compatible style.
 - Use 4-space indentation.
-- Prefer f-strings for string interpolation.
-- Use trailing commas in multi-line calls or dicts when it improves diffs.
+- Prefer readable, small functions over large monoliths.
+- Prefer f-strings for interpolation.
+- Keep multiline calls/dicts formatted consistently, with trailing commas where useful.
 
 ### Types
 
-- This codebase does not enforce static typing.
-- Add type hints only when they improve clarity and are low-maintenance.
-- Avoid introducing complex typing just for formality.
+- Type hints are optional in this repo.
+- Add type hints only when they improve clarity and maintenance.
+- Avoid heavy/complex typing patterns that reduce readability.
 
 ### Naming conventions
 
-- Classes: `CamelCase`.
-- Functions/variables: `snake_case`.
-- Constants: `UPPER_SNAKE_CASE`.
-- Use descriptive names for prompts, outputs, and file paths.
+- Classes: `CamelCase`
+- Functions/methods/variables: `snake_case`
+- Constants/module-level fixed values: `UPPER_SNAKE_CASE`
+- Use descriptive names for prompts, outputs, and filesystem paths.
 
-### Error handling
+### Error handling and resilience
 
-- Raise `RuntimeError` for user-visible failures or critical pipeline failures.
-- For external services (pytrends, Gemini/Veo), prefer best-effort behavior:
-  fall back when possible and log a helpful warning.
-- Avoid swallowing errors silently unless there is an explicit fallback path.
+- Raise `RuntimeError` for user-visible or critical pipeline failures.
+- Keep best-effort behavior for external services (Gemini/Veo/pytrends).
+- Log/print actionable warnings for fallback paths.
+- Do not silently swallow exceptions unless there is an intentional fallback.
 
-### Files and output
+### I/O and output files
 
-- Output files are written to `VIDEO_OUTPUT_DIR`.
-- Naming is based on normalized topic:
-  - `<topic>_script.txt`
-  - `<topic>.mp4`
-  - `<topic>_meta.json`
+- Write generated artifacts under `VIDEO_OUTPUT_DIR`.
+- Preserve normalized topic naming convention for script/video/metadata files.
+- Use UTF-8 for text/json writes.
 
-## Testing guidance
+## 8) Testing guidance
 
-- Tests use pytest and a dummy client for API stubs.
-- Avoid network calls in tests.
-- When adding tests, keep them deterministic and file-system isolated.
+- Framework: `pytest`
+- Tests should be deterministic and isolated.
+- Do not make live network/API calls in unit tests.
+- Reuse existing dummy client/stub pattern from `tests/test_productvideo_generator.py`.
+- Add or update tests whenever behavior changes in parsing, config, or pipeline flow.
 
-## Linting guidance
+## 9) Change scope and git hygiene
 
-- Ruff is the primary linter (see CI and `ci.sh`).
-- CI pins Ruff `0.6.8` in `ci.sh` and `.github/workflows/ci.yml`.
-- Keep code compatible with Python 3.10+.
+- Keep changes minimal and focused on the requested task.
+- Do not refactor unrelated areas “while you are here”.
+- Update docs when commands, behavior, or conventions change.
+- Avoid introducing new dependencies unless clearly justified.
 
-## CI notes
-
-- CI runs lint, compile, and pytest on Ubuntu with Python 3.13.
-- Static import sanity checks run for `google.genai`, `pytrends`, `dotenv`, `pytest`.
-
-## Repository conventions
-
-- German is the default language for user-visible content.
-- Keep sales script structure: Hook, Solution, Benefits, CTA.
-- Keep short visual cues in parentheses for Veo prompts.
-- Do not add ffmpeg or external TTS/mixing tools.
-- Keep trend behavior DACH-focused and resilient to API issues.
-
-## Git hygiene
-
-- Do not add or modify `.env` or secrets.
-- Keep changes minimal and scoped.
-- Update docs if commands or behavior change.
-
-## Useful files
+## 10) Useful files for fast orientation
 
 - `productvideo_generator.py`
 - `tests/test_productvideo_generator.py`
-- `run.sh`
-- `ci.sh`
+- `README.md`
 - `CONTRIBUTING.md`
+- `ci.sh`
+- `run.sh`
 - `.github/copilot-instructions.md`
 - `.github/workflows/ci.yml`
 
-## Notes for agents
+## 11) Practical agent workflow (recommended)
 
-- This repo is intentionally small; avoid adding unnecessary complexity.
-- If you need a new dependency, justify it clearly in your change summary.
-- Prefer code clarity and resilient error handling over cleverness.
+1. Read this file and `.github/copilot-instructions.md`.
+2. Make the smallest possible code change for the task.
+3. Run at least targeted tests; run full `pytest -q` for broader changes.
+4. Run lint/compile checks before finishing.
+5. Report what changed, what was tested, and any follow-up risk.
