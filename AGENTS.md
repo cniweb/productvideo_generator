@@ -168,3 +168,20 @@ These are repository rules and must be preserved in code changes:
 3. Run at least targeted tests; run full `pytest -q` for broader changes.
 4. Run lint/compile checks before finishing.
 5. Report what changed, what was tested, and any follow-up risk.
+
+## 12) Context7 via MCP/Tool (recommended)
+
+- Use Context7 via MCP/Tool for third-party library documentation before changing
+  integration code.
+- Prefer this for `google-genai`, `pytrends`, `pytest`, and `python-dotenv`
+  related work.
+- Do not guess method names, parameter names, or response fields when Context7 can
+  provide current docs.
+
+Suggested usage pattern:
+
+1. Resolve the library ID first in Context7.
+2. Query task-specific docs (include Python version and exact use case).
+3. Apply the smallest possible code change aligned with repository conventions.
+4. Add or update deterministic tests if API behavior/signatures are affected.
+5. Mention the doc-driven rationale briefly in the final report/PR text.
