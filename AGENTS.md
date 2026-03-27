@@ -185,3 +185,31 @@ Suggested usage pattern:
 3. Apply the smallest possible code change aligned with repository conventions.
 4. Add or update deterministic tests if API behavior/signatures are affected.
 5. Mention the doc-driven rationale briefly in the final report/PR text.
+
+## 13) Firecrawl via MCP/Tool (recommended)
+
+Use Firecrawl via MCP/Tool for web research tasks during agent-driven
+development or prompt enrichment work. Do NOT add Firecrawl as a runtime
+dependency to `requirements.txt`.
+
+Useful scenarios in this project:
+
+- **Product research**: Scrape manufacturer or shop pages to extract
+  product features, USPs, or pricing before refining the Gemini prompt
+  in `generate_sales_script()`.
+- **Trend fallback**: If `pytrends` fails due to rate limiting (HTTP 429),
+  use Firecrawl to scrape Google Trends or DACH news sources for current
+  trend signals.
+- **Competitor context**: Extract structured product data from competitor
+  pages to enrich the sales script with concrete comparisons.
+- **Documentation lookup**: Scrape API docs or changelogs not covered by
+  Context7 (e.g., Veo release notes, Gemini model capability pages).
+
+Guardrails:
+
+- Firecrawl is an agent/research tool only — not a runtime dependency.
+- Do not replace `pytrends` with Firecrawl in production code; use it
+  as a best-effort fallback signal during agent research phases only.
+- Scraped content fed into Gemini prompts must stay within token limits.
+- Respect robots.txt and site terms of service.
+- Keep DACH focus: prefer German-language sources (`.de`, `google.de`).
