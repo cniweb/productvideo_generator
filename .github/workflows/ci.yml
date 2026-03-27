@@ -43,7 +43,7 @@ jobs:
           PY
 
       - name: Ruff lint
-        run: ruff check productvideo_generator.py
+        run: ruff check productvideo_generator.py tests/
 
       - name: Byte-compile python
         run: python -m compileall productvideo_generator.py

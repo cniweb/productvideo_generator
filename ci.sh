@@ -23,8 +23,8 @@ $python_bin -m pip install ruff=="$ruff_version"
 $python_bin -m pip install mdformat=="$mdformat_version"
 
 # Linting
-$python_bin -m ruff check --fix productvideo_generator.py
-$python_bin -m ruff check productvideo_generator.py
+$python_bin -m ruff check --fix productvideo_generator.py tests/
+$python_bin -m ruff check productvideo_generator.py tests/
 
 # Markdown-Linting
 shopt -s globstar

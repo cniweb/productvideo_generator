@@ -2,7 +2,6 @@ import importlib
 import io
 import json
 import sys
-from types import SimpleNamespace
 
 
 def _load_module(tmp_path, monkeypatch):
@@ -232,3 +231,68 @@ def test_initialize_config_creates_output_dir(tmp_path, monkeypatch):
     pv._initialize_config()
 
     assert output_dir.exists()
+
+
+def test_optional_int_env_returns_default_for_invalid_value(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    monkeypatch.setenv("VIDEO_MAX_SECONDS", "not_a_number")
+    result = pv._optional_int_env("VIDEO_MAX_SECONDS", 10)
+
+    assert result == 10
+
+
+def test_normalize_topic_handles_none_input(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    assert pv.normalize_topic(None) == "topic"
+
+
+def test_normalize_topic_handles_umlauts(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    normalized = pv.normalize_topic("Smarte Kühlschränke für Büros")
+    assert normalized == "Smarte_Kuhlschranke_fur_Buros"
+
+
+def test_generate_metadata_fallback_on_invalid_json(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+
+    class BrokenJsonClient:
+        def __init__(self, pv_mod):
+            self.models = BrokenJsonModels(pv_mod)
+            self.operations = DummyOperations()
+            self.files = DummyFiles()
+
+    class BrokenJsonModels:
+        def __init__(self, pv_mod):
+            self.pv = pv_mod
+
+        def generate_content(self, model, contents, config=None):
+            return DummyResponse(text="this is not valid json")
+
+    pv.client = BrokenJsonClient(pv)
+    gen = pv.ProductVideoGenerator("TestProdukt")
+    gen.script_content = "Skripttext"
+    gen.video_path = str(tmp_path / "TestProdukt.mp4")
+    gen.generate_metadata()
+
+    meta_path = tmp_path / "TestProdukt_meta.json"
+    assert meta_path.exists()
+
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert meta["youtube_title"] == "TestProdukt"
+    assert meta["youtube_description"] == "Skripttext"
+
+
+def test_initialize_config_skips_when_already_initialized(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    pv.client = DummyClient(pv)
+
+    pv._initialize_config()
+    original_output_dir = pv.OUTPUT_DIR
+
+    monkeypatch.setenv("VIDEO_OUTPUT_DIR", str(tmp_path / "other"))
+    pv._initialize_config()
+
+    assert pv.OUTPUT_DIR == original_output_dir
