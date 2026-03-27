@@ -11,9 +11,11 @@ def _load_module(tmp_path, monkeypatch):
     monkeypatch.setenv("CHANNEL_DESCRIPTION", "Test Desc")
     monkeypatch.setenv("VIDEO_OUTPUT_DIR", str(tmp_path))
     monkeypatch.setenv("VIDEO_MODEL", "test-video-model")
+    monkeypatch.setenv("VIDEO_FALLBACK_MODEL", "test-fallback-model")
     monkeypatch.setenv("VIDEO_MAX_SECONDS", "8")
 
     import productvideo_generator as pv
+
     pv = importlib.reload(pv)
     return pv
 
@@ -221,9 +223,11 @@ def test_initialize_config_creates_output_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("CHANNEL_DESCRIPTION", "Test Desc")
     monkeypatch.setenv("VIDEO_OUTPUT_DIR", str(output_dir))
     monkeypatch.setenv("VIDEO_MODEL", "test-video-model")
+    monkeypatch.setenv("VIDEO_FALLBACK_MODEL", "test-fallback-model")
     monkeypatch.setenv("VIDEO_MAX_SECONDS", "8")
 
     import productvideo_generator as pv
+
     pv = importlib.reload(pv)
     pv._initialize_config()
 
