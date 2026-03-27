@@ -1,5 +1,5 @@
 #!/bin/bash
-# Führt Linting, Syntax-Check und Tests für podcast_generator im venv aus.
+# Führt Linting, Syntax-Check und Tests für productvideo_generator im venv aus.
 set -euo pipefail
 
 python_bin="python3"

@@ -22,7 +22,8 @@ Repository guidance for agentic coding assistants working on
 
 ```bash
 python -m venv .venv
-source .venv/Scripts/activate
+source .venv/Scripts/activate  # Windows
+# source .venv/bin/activate    # Linux/macOS (CI runs on Ubuntu)
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
@@ -44,6 +45,9 @@ python -m pip install -r requirements.txt
 - Runs `ruff check --fix` and then `ruff check`.
 - Runs markdown format check via `mdformat --check **/*.md`.
 - Runs import sanity check and then pytest.
+- Note: `ci.sh` checks imports for `pydub` and `requests`, which are not in
+  `requirements.txt` and not used in the project — this is a known leftover and
+  does not affect CI (`.github/workflows/ci.yml` does not check these).
 
 ## 3) CI behavior
 
@@ -61,10 +65,11 @@ Required env vars:
 - `CHANNEL_NAME`
 - `CHANNEL_DESCRIPTION`
 - `VIDEO_OUTPUT_DIR`
+- `VIDEO_MODEL`
+- `VIDEO_FALLBACK_MODEL`
 
 Optional env vars:
 
-- `VIDEO_MODEL`
 - `VIDEO_MAX_SECONDS`
 - `VIDEO_ASPECT_RATIO`
 - `VIDEO_RESOLUTION`
@@ -74,6 +79,9 @@ Rules:
 - Never hardcode secrets.
 - Never commit `.env` or credentials.
 - Keep `.env`-driven configuration model intact.
+- `SCRIPT_MODEL` (Gemini text model for script/metadata) is hardcoded in
+  `productvideo_generator.py` and is not configurable via env var — do not
+  attempt to add an env var for it without a matching code change.
 
 ## 5) Copilot rules (from `.github/copilot-instructions.md`)
 
@@ -158,16 +166,20 @@ These are repository rules and must be preserved in code changes:
 - `CONTRIBUTING.md`
 - `ci.sh`
 - `run.sh`
+- `setup.sh`
+- `.env.example`
 - `.github/copilot-instructions.md`
 - `.github/workflows/ci.yml`
+- `.planning/ROADMAP.md` (project goals and phases)
 
 ## 11) Practical agent workflow (recommended)
 
 1. Read this file and `.github/copilot-instructions.md`.
-2. Make the smallest possible code change for the task.
-3. Run at least targeted tests; run full `pytest -q` for broader changes.
-4. Run lint/compile checks before finishing.
-5. Report what changed, what was tested, and any follow-up risk.
+2. Copy `.env.example` to `.env` and fill in required variables before first run.
+3. Make the smallest possible code change for the task.
+4. Run at least targeted tests; run full `pytest -q` for broader changes.
+5. Run lint/compile checks before finishing.
+6. Report what changed, what was tested, and any follow-up risk.
 
 ## 12) Context7 via MCP/Tool (recommended)
 
