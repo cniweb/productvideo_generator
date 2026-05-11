@@ -1,4 +1,4 @@
-google-genai
-pytrends
-python-dotenv
-pytest
+google-genai==1.9.0
+pytrends==4.9.2
+python-dotenv==1.2.2
+pytest==9.0.3

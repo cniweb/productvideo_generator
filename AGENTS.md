@@ -52,10 +52,17 @@ python -m pip install -r requirements.txt
 ## 3) CI behavior
 
 - Workflow file: `.github/workflows/ci.yml`
+- OpenCode GitHub Action: `.github/workflows/opencode.yml` (triggered via `/oc` or `/opencode` comments on PRs/issues).
 - CI runs on Ubuntu with Python 3.13.
 - CI installs `ruff==0.6.8`.
 - CI sequence: install deps -> static import check -> ruff -> compileall -> pytest.
 - Keep local changes compatible with both local scripts and CI workflow behavior.
+
+### GitHub Actions status after push (Agent workflow)
+- After every `git push`, check the latest GitHub Actions run for `main` via `gh run list --limit 5 --branch main`.
+- If the pushed commit's CI run is still in progress, inspect it again until it completes or clearly report that it is still running.
+- If the CI run fails, inspect details with `gh run view <run-id>` (and job logs as needed), attempt a targeted fix locally, rerun relevant local validation, commit the fix, push again, and re-check GitHub Actions until the build is green or you are blocked.
+- When reporting back after a push, include whether the GitHub Actions build passed, failed, or is still running.
 
 ## 4) Environment variables and config
 
@@ -225,3 +232,12 @@ Guardrails:
 - Scraped content fed into Gemini prompts must stay within token limits.
 - Respect robots.txt and site terms of service.
 - Keep DACH focus: prefer German-language sources (`.de`, `google.de`).
+
+## 14) Agent Operating Guidelines
+
+- **Language:** All communication between the agent and the user MUST be in German.
+- **Code First:** Read relevant code before making behavior changes.
+- **Focus:** Prefer targeted edits over broad refactors.
+- **Security:** Do not commit secrets, generated credentials, or local environment files.
+- **Git Hygiene:** Avoid destructive git operations (`reset --hard`, `checkout --`) unless explicitly requested.
+- **Quality:** If uncertain about behavior changes affecting output quality, ask for clarification.
