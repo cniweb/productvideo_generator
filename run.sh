@@ -25,14 +25,19 @@ if [ ! -d ".venv" ]; then
     $PYTHON_BIN -m venv .venv
 fi
 
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'; then
+    echo -e "${RED}Fehler: Python 3.10 oder neuer erforderlich.${NC}"
+    exit 1
+fi
+
 # Aktivieren
-source .venv/Scripts/activate
+source .venv/bin/activate
 
 # 3. ABHÄNGIGKEITEN (Quick Check)
 # Wir führen setup.sh aus, wenn es noch nie gelaufen ist (oder manuell aufrufen)
-if ! pip freeze | grep -q "google-genai"; then
+if ! python -c "import google.genai" >/dev/null 2>&1; then
     echo -e "${YELLOW}Installiere Abhängigkeiten...${NC}"
-    pip install -q -r requirements.txt
+    python -m pip install -q -r requirements.txt
 fi
 
 # 4. STARTEN
