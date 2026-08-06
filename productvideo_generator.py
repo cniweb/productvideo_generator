@@ -540,17 +540,33 @@ def _resolve_topic_from_cli(argv=None):
 if __name__ == "__main__":
     _initialize_config()  # Initialize before using config variables
     print(f"--- {CHANNEL_NAME.upper()} GENERATOR (VEO) ---")
+    run_started_at = time.time()
 
     # Eingabe lesen (CLI-Argument > stdin > Prompt)
     topic = _resolve_topic_from_cli()
 
     gen = ProductVideoGenerator(topic)
 
-    gen.research_trends()
-    
-    gen.generate_sales_script()
-    if gen.script_content:
+    try:
+        gen.research_trends()
+        gen.generate_sales_script()
+        if not gen.script_content:
+            raise RuntimeError("Kein Skript erzeugt.")
         gen.generate_video_with_veo()
         gen.generate_metadata()
-    
+        gen.validate_outputs()
+    except Exception as exc:
+        gen.write_run_manifest(
+            started_at=run_started_at,
+            finished_at=time.time(),
+            status="failed",
+            error=str(exc),
+        )
+        raise
+
+    gen.write_run_manifest(
+        started_at=run_started_at,
+        finished_at=time.time(),
+        status="completed",
+    )
     print("\n✅ PRODUKTION ABGESCHLOSSEN!")

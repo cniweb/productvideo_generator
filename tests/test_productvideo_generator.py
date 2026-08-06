@@ -296,3 +296,77 @@ def test_initialize_config_skips_when_already_initialized(tmp_path, monkeypatch)
     pv._initialize_config()
 
     assert pv.OUTPUT_DIR == original_output_dir
+
+
+def test_write_run_manifest_persists_common_fields(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    gen = pv.ProductVideoGenerator("TestProdukt")
+    gen.script_path = str(tmp_path / "TestProdukt_script.txt")
+    gen.video_path = str(tmp_path / "TestProdukt.mp4")
+    gen.metadata_path = str(tmp_path / "TestProdukt_meta.json")
+
+    gen.write_run_manifest(
+        started_at=100.0,
+        finished_at=112.5,
+        status="completed",
+    )
+
+    manifest = json.loads(
+        (tmp_path / "TestProdukt_run.json").read_text(encoding="utf-8")
+    )
+    assert manifest["status"] == "completed"
+    assert manifest["duration_seconds"] == 12.5
+    assert manifest["artifacts"]["video"] == gen.video_path
+    assert manifest["error"] is None
+
+
+def test_validate_outputs_rejects_missing_artifacts(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    monkeypatch.setattr(pv.shutil, "which", lambda _: None)
+    gen = pv.ProductVideoGenerator("TestProdukt")
+
+    try:
+        gen.validate_outputs()
+    except RuntimeError as exc:
+        assert "Output-QA fehlgeschlagen" in str(exc)
+        assert "Skript-Datei fehlt" in str(exc)
+        assert "Video-Datei fehlt" in str(exc)
+    else:
+        raise AssertionError("validate_outputs sollte fehlende Artefakte melden")
+
+
+def test_validate_outputs_accepts_artifacts_without_ffprobe(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    monkeypatch.setattr(pv.shutil, "which", lambda _: None)
+    gen = pv.ProductVideoGenerator("TestProdukt")
+    gen.script_path = str(tmp_path / "TestProdukt_script.txt")
+    gen.video_path = str(tmp_path / "TestProdukt.mp4")
+    gen.metadata_path = str(tmp_path / "TestProdukt_meta.json")
+    for path in (gen.script_path, gen.video_path):
+        open(path, "wb").write(b"artifact")
+    with open(gen.metadata_path, "w", encoding="utf-8") as handle:
+        json.dump(
+            {"video_file": gen.video_path, "script_file": gen.script_path},
+            handle,
+        )
+
+    gen.validate_outputs()
+
+
+def test_validate_outputs_rejects_invalid_metadata_json(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    monkeypatch.setattr(pv.shutil, "which", lambda _: None)
+    gen = pv.ProductVideoGenerator("TestProdukt")
+    gen.script_path = str(tmp_path / "script.txt")
+    gen.video_path = str(tmp_path / "video.mp4")
+    gen.metadata_path = str(tmp_path / "meta.json")
+    for path in (gen.script_path, gen.video_path):
+        open(path, "wb").write(b"artifact")
+    open(gen.metadata_path, "w", encoding="utf-8").write("not json")
+
+    try:
+        gen.validate_outputs()
+    except RuntimeError as exc:
+        assert "Metadaten-JSON ungültig" in str(exc)
+    else:
+        raise AssertionError("Ungültiges JSON sollte die Output-QA stoppen")
