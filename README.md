@@ -31,24 +31,26 @@ python -m pip install mdformat
 
 1. Projekt klonen oder entpacken.
 1. Umgebungsvariablen setzen:
-   ```bash
-   cp .env.example .env # .env bearbeiten und GEMINI_API_KEY eintragen
+
+    ```bash
+    cp .env.example .env # .env bearbeiten und GEMINI_API_KEY eintragen
    ```
 1. Setup ausführen:
-   ```bash
-   chmod +x setup.sh run.sh
-   ./setup.sh
+
+    ```bash
+    chmod +x setup.sh run.sh
+    ./setup.sh
    ```
 
 ## Nutzung
 
 Einfach das Run-Skript starten. Optional kann ein Thema übergeben werden.
 
-\`\`\`bash
+```bash
 ./run.sh "Smarte Kaffeemaschine" # Mit spezifischem Produkt/Thema
 
 ./run.sh # Ohne Thema (sucht automatisch nach Trends)
-\`\`\`
+```
 
 ## Funktionsweise
 
@@ -59,7 +61,7 @@ Einfach das Run-Skript starten. Optional kann ein Thema übergeben werden.
 
 ## Output
 
-Die Ergebnisse landen im Ordner \`finished_videos\`:
+Die Ergebnisse landen im Ordner `finished_videos`:
 
 - `*.mp4`: Das fertige Video.
 - `*.json`: Metadaten für den Upload.
