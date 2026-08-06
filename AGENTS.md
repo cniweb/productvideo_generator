@@ -236,6 +236,9 @@ Guardrails:
 
 ## 14) Agent Operating Guidelines
 
+Dependency-Automatisierung: Renovate erstellt geplante Update-PRs; Dependabot
+Security Alerts bleibt für Sicherheitsmeldungen zuständig.
+
 - **Language:** All communication between the agent and the user MUST be in German.
 - **Code First:** Read relevant code before making behavior changes.
 - **Focus:** Prefer targeted edits over broad refactors.

@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -17,6 +18,8 @@ from dotenv import load_dotenv
 # ==============================================================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(SCRIPT_DIR, ".env")
+with open(os.path.join(SCRIPT_DIR, "VERSION"), encoding="utf-8") as version_file:
+    VERSION = version_file.read().strip()
 load_dotenv(ENV_FILE)
 
 def _raise_env_error(message, missing=None):
@@ -482,6 +485,11 @@ class ProductVideoGenerator:
         meta = {
             "channel": CHANNEL_NAME,
             "topic": self.topic,
+            "generator_version": VERSION,
+            "runtime": {
+                "python": platform.python_version(),
+                "platform": platform.platform(),
+            },
             "video_file": video_path,
             "script_file": script_path,
             "youtube_title": data.get("title", f"Review: {self.topic}"),
@@ -586,6 +594,7 @@ def _validate_topic_input(topic):
 
 def _resolve_topic_from_cli(argv=None):
     parser = argparse.ArgumentParser(description="Product Video Generator (Veo)")
+    parser.add_argument("--version", action="version", version=VERSION)
     parser.add_argument(
         "topic",
         nargs="?",

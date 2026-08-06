@@ -192,6 +192,11 @@ def test_resolve_topic_prefers_cli_argument_over_stdin(tmp_path, monkeypatch):
     assert topic == "ArgTopic"
 
 
+def test_cli_version_is_defined(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    assert pv.VERSION == "0.1.0"
+
+
 def test_resolve_topic_reads_stdin_when_no_arg(tmp_path, monkeypatch):
     pv = _load_module(tmp_path, monkeypatch)
 

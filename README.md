@@ -68,6 +68,11 @@ Die Ergebnisse landen im Ordner `finished_videos`:
 - `*.json`: Metadaten für den Upload.
 - `*_script.txt`: Das genutzte Skript.
 
+## Dependency-Automatisierung
+
+Renovate erstellt geplante Dependency-Update-PRs. GitHub Dependabot Security
+Alerts bleibt für Sicherheitsmeldungen zuständig.
+
 ## Hinweise für Agents / Copilot
 
 Siehe [AGENTS.md](AGENTS.md) für Leitplanken, Arbeitsweise und Qualitätssicherung.
