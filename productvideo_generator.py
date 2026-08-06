@@ -2,6 +2,8 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 import unicodedata
@@ -488,7 +490,82 @@ class ProductVideoGenerator:
         meta_path = os.path.join(OUTPUT_DIR, f"{normalized_topic}_meta.json")
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=4, ensure_ascii=False)
+        self.metadata_path = meta_path
         print("   -> Fertig.")
+
+    def write_run_manifest(self, *, started_at, finished_at, status, error=None):
+        """Schreibt den standardisierten Status des Produktionslaufs."""
+        normalized_topic = normalize_topic(self.topic)
+        manifest = {
+            "topic": self.topic,
+            "status": status,
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "duration_seconds": round(max(0.0, finished_at - started_at), 2),
+            "models": {
+                "script": SCRIPT_MODEL,
+                "video": VIDEO_MODEL,
+                "video_fallback": VIDEO_FALLBACK_MODEL,
+            },
+            "artifacts": {
+                "script": self.script_path or None,
+                "video": self.video_path or None,
+                "metadata": self.metadata_path or None,
+            },
+            "error": error,
+        }
+        self.run_manifest_path = os.path.join(
+            OUTPUT_DIR, f"{normalized_topic}_run.json"
+        )
+        with open(self.run_manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+    def validate_outputs(self):
+        """Prüft alle erzeugten Productvideo-Artefakte vor dem Erfolgsstatus."""
+        issues = []
+        required_files = {
+            "Skript-Datei": self.script_path,
+            "Video-Datei": self.video_path,
+            "Metadaten-Datei": self.metadata_path,
+        }
+        for label, path in required_files.items():
+            if not path or not os.path.exists(path):
+                issues.append(f"{label} fehlt")
+            elif os.path.getsize(path) == 0:
+                issues.append(f"{label} ist leer")
+
+        if self.metadata_path and os.path.exists(self.metadata_path):
+            try:
+                with open(self.metadata_path, encoding="utf-8") as f:
+                    metadata = json.load(f)
+                for key in ("video_file", "script_file"):
+                    referenced = metadata.get(key)
+                    if referenced and not os.path.exists(referenced):
+                        issues.append(f"Metadaten-Referenz fehlt: {key}")
+            except (OSError, json.JSONDecodeError) as exc:
+                issues.append(f"Metadaten-JSON ungültig: {exc}")
+
+        ffprobe = shutil.which("ffprobe")
+        if ffprobe and self.video_path and os.path.exists(self.video_path):
+            result = subprocess.run(
+                [
+                    ffprobe,
+                    "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_type",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    self.video_path,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0 or "video" not in result.stdout.split():
+                issues.append("Video-Datei enthält keinen lesbaren Videostream")
+        elif not ffprobe:
+            print("   ⚠️ ffprobe nicht verfügbar – überspringe Video-Stream-Prüfung.")
+
+        if issues:
+            raise RuntimeError("Output-QA fehlgeschlagen: " + "; ".join(issues))
 
 
 def _raise_input_error(reason):
