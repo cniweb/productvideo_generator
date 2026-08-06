@@ -208,6 +208,8 @@ class ProductVideoGenerator:
         self.script_content = ""
         self.video_path = ""
         self.script_path = ""
+        self.metadata_path = ""
+        self.run_manifest_path = ""
         print(f"🚀 Starte Videoproduktion für Kanal '{CHANNEL_NAME}'")
         print(f"   Thema: '{topic}'")
 
