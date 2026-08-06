@@ -59,6 +59,7 @@ python -m pip install -r requirements.txt
 - Keep local changes compatible with both local scripts and CI workflow behavior.
 
 ### GitHub Actions status after push (Agent workflow)
+
 - After every `git push`, check the latest GitHub Actions run for `main` via `gh run list --limit 5 --branch main`.
 - If the pushed commit's CI run is still in progress, inspect it again until it completes or clearly report that it is still running.
 - If the CI run fails, inspect details with `gh run view <run-id>` (and job logs as needed), attempt a targeted fix locally, rerun relevant local validation, commit the fix, push again, and re-check GitHub Actions until the build is green or you are blocked.

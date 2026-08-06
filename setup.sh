@@ -20,16 +20,22 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+python_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'; then
+    echo -e "${RED}Fehler: Python 3.10 oder neuer erforderlich (gefunden: ${python_version}).${NC}"
+    exit 1
+fi
+
 # Venv erstellen falls nötig
 if [ ! -d ".venv" ]; then
     python3 -m venv .venv
 fi
 
-source .venv/Scripts/activate
+source .venv/bin/activate
 
 # Dependencies
 echo -e "${GREEN}Installiere Python Abhängigkeiten...${NC}"
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 echo -e "\n${GREEN}--- Installation abgeschlossen! ---${NC}"
 echo "Starte mit: ./run.sh \"Dein Produkt\""
