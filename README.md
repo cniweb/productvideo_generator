@@ -34,7 +34,8 @@ python -m pip install mdformat
 
     ```bash
     cp .env.example .env # .env bearbeiten und GEMINI_API_KEY eintragen
-   ```
+    ```
+
 1. Setup ausführen:
 
     ```bash
