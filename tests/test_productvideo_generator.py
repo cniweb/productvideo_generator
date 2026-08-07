@@ -111,6 +111,27 @@ def test_generate_sales_script_writes_file(tmp_path, monkeypatch):
     assert script_path.read_text(encoding="utf-8") == gen.script_content
 
 
+def test_generate_content_retries_rate_limit(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    calls = {"count": 0}
+
+    class RetryModels:
+        def generate_content(self, **kwargs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise RuntimeError("429 rate limit")
+            return DummyResponse(text="ok")
+
+    class RetryClient:
+        models = RetryModels()
+
+    pv.client = RetryClient()
+    monkeypatch.setattr(pv.time, "sleep", lambda _: None)
+    response = pv._generate_content_with_retry(model="test", contents="prompt")
+    assert response.text == "ok"
+    assert calls["count"] == 2
+
+
 def test_generate_video_with_veo_writes_video(tmp_path, monkeypatch):
     pv = _load_module(tmp_path, monkeypatch)
     pv.client = DummyClient(pv)
@@ -320,6 +341,8 @@ def test_write_run_manifest_persists_common_fields(tmp_path, monkeypatch):
         (tmp_path / "TestProdukt_run.json").read_text(encoding="utf-8")
     )
     assert manifest["status"] == "completed"
+    assert manifest["schema_version"] == 1
+    assert manifest["generator"] == "productvideo"
     assert manifest["duration_seconds"] == 12.5
     assert manifest["artifacts"]["video"] == gen.video_path
     assert manifest["error"] is None
