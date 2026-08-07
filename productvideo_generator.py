@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import unicodedata
 from pytrends.request import TrendReq
@@ -28,6 +29,8 @@ EXIT_USAGE_ERROR = 2
 MANIFEST_SCHEMA_VERSION = 1
 GEMINI_RETRY_ATTEMPTS = 3
 GEMINI_RETRY_BASE_DELAY = 2.0
+VIDEO_POLL_INTERVAL_SECONDS = 10
+VIDEO_POLL_MAX_ATTEMPTS = 60
 
 
 class ConfigurationError(RuntimeError):
@@ -48,6 +51,23 @@ class GenerationError(ExternalServiceError):
 
 class OutputValidationError(RuntimeError):
     """Generierte Artefakte erfüllen die Output-QA nicht."""
+
+
+def _atomic_write_text(path, content):
+    directory = os.path.dirname(path) or "."
+    fd, temporary_path = tempfile.mkstemp(dir=directory, prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(temporary_path, path)
+    except Exception:
+        if os.path.exists(temporary_path):
+            os.unlink(temporary_path)
+        raise
+
+
+def _atomic_write_json(path, payload):
+    _atomic_write_text(path, json.dumps(payload, indent=2, ensure_ascii=False))
 
 
 def _is_retryable_error(error):
@@ -356,8 +376,7 @@ class ProductVideoGenerator:
             normalized_topic = normalize_topic(self.topic)
             script_filename = f"{normalized_topic}_script.txt"
             script_path = os.path.join(OUTPUT_DIR, script_filename)
-            with open(script_path, "w", encoding="utf-8") as f:
-                f.write(self.script_content)
+            _atomic_write_text(script_path, self.script_content)
             self.script_path = script_path
             
             print("   -> Skript erstellt.")
@@ -382,11 +401,16 @@ class ProductVideoGenerator:
 
     def _wait_for_operation(self, operation, wait_message=VIDEO_GENERATION_WAIT_MESSAGE):
         """Wartet auf eine abgeschlossene Operation und gibt sie zurück."""
-        while not operation.done:
+        for _ in range(VIDEO_POLL_MAX_ATTEMPTS):
+            if operation.done:
+                return operation
             print(wait_message)
-            time.sleep(10)
+            time.sleep(VIDEO_POLL_INTERVAL_SECONDS)
             operation = client.operations.get(operation)
-        return operation
+        raise GenerationError(
+            f"Video-Generierung überschritt das Zeitlimit nach "
+            f"{VIDEO_POLL_MAX_ATTEMPTS * VIDEO_POLL_INTERVAL_SECONDS} Sekunden."
+        )
 
     def _run_video_generation(self, model, prompt, config=None, video=None):
         """Startet eine Video-Generierung und gibt das generierte Video zurück."""
@@ -447,8 +471,7 @@ class ProductVideoGenerator:
                 fallback = candidate
                 break
         if fallback is None:
-            print("   💡 Setze VIDEO_MODEL/VIDEO_FALLBACK_MODEL in .env auf verfügbare Modelle.")
-            return False
+            raise GenerationError("Kein nutzbares Fallback-Video-Modell konfiguriert.")
 
         print(f"   🔁 Erneuter Versuch mit: {fallback}")
         try:
@@ -460,8 +483,9 @@ class ProductVideoGenerator:
             return True
         except Exception as retry_exc:
             print(f"   ❌ Erneuter Versuch fehlgeschlagen: {retry_exc}")
-        print("   💡 Setze VIDEO_MODEL/VIDEO_FALLBACK_MODEL in .env auf verfügbare Modelle.")
-        return False
+        raise GenerationError(
+            "Primäres und Fallback-Video-Modell konnten kein Video erzeugen."
+        )
 
     def generate_video_with_veo(self):
         """Nutzt die Gemini API (Veo Modell), um das Video zu rendern."""
@@ -550,8 +574,7 @@ class ProductVideoGenerator:
         }
 
         meta_path = os.path.join(OUTPUT_DIR, f"{normalized_topic}_meta.json")
-        with open(meta_path, "w", encoding="utf-8") as f:
-            json.dump(meta, f, indent=4, ensure_ascii=False)
+        _atomic_write_json(meta_path, meta)
         self.metadata_path = meta_path
         print("   -> Fertig.")
 
@@ -581,8 +604,7 @@ class ProductVideoGenerator:
         self.run_manifest_path = os.path.join(
             OUTPUT_DIR, f"{normalized_topic}_run.json"
         )
-        with open(self.run_manifest_path, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
+        _atomic_write_json(self.run_manifest_path, manifest)
 
     def validate_outputs(self):
         """Prüft alle erzeugten Productvideo-Artefakte vor dem Erfolgsstatus."""
