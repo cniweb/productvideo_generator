@@ -13,6 +13,8 @@ from pytrends.request import TrendReq
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from config import load_config
+from qa import validate_manifest
 
 # ==============================================================================
 # KONFIGURATION & API KEYS
@@ -196,15 +198,17 @@ def _initialize_config():
     
     _check_env_file()
     
+    config = load_config(os.environ, SCRIPT_DIR)
+
     # Secrets
-    GEMINI_API_KEY = _require_env("GEMINI_API_KEY")
-    
+    GEMINI_API_KEY = config.gemini_api_key
+
     # Kanal Einstellungen
-    CHANNEL_NAME = _require_env("CHANNEL_NAME")
-    CHANNEL_DESC = _require_env("CHANNEL_DESCRIPTION")
-    
+    CHANNEL_NAME = config.channel_name
+    CHANNEL_DESC = config.channel_description
+
     # Pfade
-    OUTPUT_DIR = _require_env("VIDEO_OUTPUT_DIR")
+    OUTPUT_DIR = str(config.output_dir)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     # Client-Setup (only if not already set, e.g., in tests)
@@ -212,8 +216,8 @@ def _initialize_config():
         client = genai.Client(api_key=GEMINI_API_KEY)
     
     # Video configuration
-    VIDEO_MODEL = _require_env("VIDEO_MODEL")
-    VIDEO_FALLBACK_MODEL = _require_env("VIDEO_FALLBACK_MODEL")
+    VIDEO_MODEL = config.video_model
+    VIDEO_FALLBACK_MODEL = config.video_fallback_model
     VIDEO_MAX_SECONDS = _optional_int_env("VIDEO_MAX_SECONDS", 10)
     VIDEO_ASPECT_RATIO = _optional_env("VIDEO_ASPECT_RATIO", "9:16")
     VIDEO_RESOLUTION = _optional_env("VIDEO_RESOLUTION", "720p")
@@ -601,6 +605,9 @@ class ProductVideoGenerator:
             },
             "error": error,
         }
+        validation = validate_manifest(manifest)
+        if not validation.ok:
+            raise OutputValidationError("Manifest ungültig: " + "; ".join(validation.errors))
         self.run_manifest_path = os.path.join(
             OUTPUT_DIR, f"{normalized_topic}_run.json"
         )
