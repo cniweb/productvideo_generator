@@ -183,6 +183,7 @@ VIDEO_FALLBACK_MODEL = None
 VIDEO_MAX_SECONDS = None
 VIDEO_ASPECT_RATIO = None
 VIDEO_RESOLUTION = None
+JSON_OUTPUT = False
 VIDEO_GENERATION_WAIT_MESSAGE = "   ⏳ Warte auf Video-Generierung..."
 VIDEO_NO_DATA_ERROR_MESSAGE = "API lieferte keine Video-Daten zurück."
 
@@ -192,7 +193,7 @@ def _initialize_config():
     """Initialize configuration and API client. Called lazily on first use."""
     global GEMINI_API_KEY, CHANNEL_NAME, CHANNEL_DESC, OUTPUT_DIR, client
     global VIDEO_MODEL, VIDEO_FALLBACK_MODEL
-    global VIDEO_MAX_SECONDS, VIDEO_ASPECT_RATIO, VIDEO_RESOLUTION, _initialized
+    global VIDEO_MAX_SECONDS, VIDEO_ASPECT_RATIO, VIDEO_RESOLUTION, JSON_OUTPUT, _initialized
     
     if _initialized:
         return
@@ -723,12 +724,15 @@ def _validate_topic_input(topic):
 def _resolve_topic_from_cli(argv=None):
     parser = argparse.ArgumentParser(description="Product Video Generator (Veo)")
     parser.add_argument("--version", action="version", version=VERSION)
+    parser.add_argument("--json", action="store_true", help="Ergebnis als JSON ausgeben")
     parser.add_argument(
         "topic",
         nargs="?",
         help=f"Produkt/Thema (min. {MIN_TOPIC_LENGTH} Zeichen)",
     )
     args = parser.parse_args(argv)
+    global JSON_OUTPUT
+    JSON_OUTPUT = args.json
 
     if args.topic is not None:
         topic = args.topic.strip()
@@ -760,6 +764,7 @@ if __name__ == "__main__":
 
     # Eingabe lesen (CLI-Argument > stdin > Prompt)
     topic = _resolve_topic_from_cli()
+    json_output = JSON_OUTPUT
 
     gen = ProductVideoGenerator(topic, config=load_config(os.environ, SCRIPT_DIR))
 
@@ -805,4 +810,16 @@ if __name__ == "__main__":
         finished_at=time.time(),
         status="completed",
     )
-    print("\n✅ PRODUKTION ABGESCHLOSSEN!")
+    if json_output:
+        result = {
+            "status": "completed",
+            "manifest": gen.run_manifest_path,
+            "artifacts": {
+                "script": gen.script_path,
+                "video": gen.video_path,
+                "metadata": gen.metadata_path,
+            },
+        }
+        print(json.dumps(result, ensure_ascii=False))
+    else:
+        print("\n✅ PRODUKTION ABGESCHLOSSEN!")
