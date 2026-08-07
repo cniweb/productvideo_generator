@@ -410,6 +410,16 @@ def test_write_run_manifest_persists_common_fields(tmp_path, monkeypatch):
     assert manifest["error"] is None
 
 
+def test_manifest_serializes_structured_error(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    gen = pv.ProductVideoGenerator("TestProdukt")
+    error = pv.GenerationError("temporary failure")
+    gen.write_run_manifest(started_at=1.0, finished_at=2.0, status="failed", error=error)
+    manifest = json.loads((tmp_path / "TestProdukt_run.json").read_text(encoding="utf-8"))
+    assert manifest["error"]["type"] == "GenerationError"
+    assert manifest["error"]["retryable"] is True
+
+
 def test_validate_outputs_rejects_missing_artifacts(tmp_path, monkeypatch):
     pv = _load_module(tmp_path, monkeypatch)
     monkeypatch.setattr(pv.shutil, "which", lambda _: None)

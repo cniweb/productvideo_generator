@@ -93,6 +93,7 @@ def _generate_content_with_retry(*, model, contents, config=None):
             last_error = exc
             if not _is_retryable_error(exc) or attempt == GEMINI_RETRY_ATTEMPTS:
                 break
+            # Retry metrics are incremented by the owning generator when applicable.
             time.sleep(GEMINI_RETRY_BASE_DELAY * (2 ** (attempt - 1)))
     raise ExternalServiceError(f"Gemini-Aufruf fehlgeschlagen: {last_error}") from last_error
 
@@ -359,8 +360,12 @@ class ProductVideoGenerator:
         """Erstellt ein verkaufsoptimiertes Skript."""
         print(f"✍️ 2. Erstelle Produkt-Skript für '{self.topic}'...")
 
+        channel_name = self.config.channel_name if self.config else CHANNEL_NAME
+        channel_description = (
+            self.config.channel_description if self.config else CHANNEL_DESC
+        )
         prompt = f"""
-        Du bist der Produzent des Videokanals '{CHANNEL_NAME}'. Beschreibung: '{CHANNEL_DESC}'.
+        Du bist der Produzent des Videokanals '{channel_name}'. Beschreibung: '{channel_description}'.
         Erstelle ein kurzes, verkaufsförderndes Video-Skript (max 60 Sekunden Sprechzeit) für das Produkt/Thema: '{self.topic}'.
         
         Struktur:
@@ -383,7 +388,8 @@ class ProductVideoGenerator:
             # Speichere Skript zur Kontrolle
             normalized_topic = normalize_topic(self.topic)
             script_filename = f"{normalized_topic}_script.txt"
-            script_path = os.path.join(OUTPUT_DIR, script_filename)
+            output_dir = self.config.output_dir if self.config else OUTPUT_DIR
+            script_path = os.path.join(str(output_dir), script_filename)
             _atomic_write_text(script_path, self.script_content)
             self.script_path = script_path
             
@@ -482,6 +488,7 @@ class ProductVideoGenerator:
             raise GenerationError("Kein nutzbares Fallback-Video-Modell konfiguriert.")
 
         print(f"   🔁 Erneuter Versuch mit: {fallback}")
+        self.retry_count += 1
         try:
             generated_video = self._run_video_generation(
                 model=fallback,
@@ -497,7 +504,7 @@ class ProductVideoGenerator:
 
     def generate_video_with_veo(self):
         """Nutzt die Gemini API (Veo Modell), um das Video zu rendern."""
-        video_model = VIDEO_MODEL
+        video_model = self.config.video_model if self.config else VIDEO_MODEL
         print(f"🎬 3. Generiere Video mit {video_model} (das kann dauern)...")
 
         veo_prompt = self._build_veo_prompt()
@@ -505,7 +512,8 @@ class ProductVideoGenerator:
         try:
             normalized_topic = normalize_topic(self.topic)
             filename = f"{normalized_topic}.mp4"
-            self.video_path = os.path.join(OUTPUT_DIR, filename)
+            output_dir = self.config.output_dir if self.config else OUTPUT_DIR
+            self.video_path = os.path.join(str(output_dir), filename)
 
             generated_video = self._run_video_generation(
                 model=video_model,
@@ -603,15 +611,27 @@ class ProductVideoGenerator:
             "duration_seconds": round(max(0.0, finished_at - started_at), 2),
             "models": {
                 "script": SCRIPT_MODEL,
-                "video": VIDEO_MODEL,
-                "video_fallback": VIDEO_FALLBACK_MODEL,
+                "video": self.config.video_model if self.config else VIDEO_MODEL,
+                "video_fallback": (
+                    self.config.video_fallback_model
+                    if self.config
+                    else VIDEO_FALLBACK_MODEL
+                ),
             },
             "artifacts": {
                 "script": self.script_path or None,
                 "video": self.video_path or None,
                 "metadata": self.metadata_path or None,
             },
-            "error": error,
+            "error": (
+                {
+                    "type": type(error).__name__,
+                    "message": str(error),
+                    "retryable": isinstance(error, ExternalServiceError),
+                }
+                if isinstance(error, BaseException)
+                else error
+            ),
             "steps": self.step_metrics,
             "retries": self.retry_count,
         }
@@ -619,7 +639,8 @@ class ProductVideoGenerator:
         if not validation.ok:
             raise OutputValidationError("Manifest ungültig: " + "; ".join(validation.errors))
         self.run_manifest_path = os.path.join(
-            OUTPUT_DIR, f"{normalized_topic}_run.json"
+            str(self.config.output_dir if self.config else OUTPUT_DIR),
+            f"{normalized_topic}_run.json",
         )
         _atomic_write_json(self.run_manifest_path, manifest)
 
@@ -775,7 +796,7 @@ if __name__ == "__main__":
             started_at=run_started_at,
             finished_at=time.time(),
             status="failed",
-            error=str(exc),
+            error=exc,
         )
         raise
 
