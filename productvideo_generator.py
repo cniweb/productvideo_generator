@@ -22,6 +22,58 @@ with open(os.path.join(SCRIPT_DIR, "VERSION"), encoding="utf-8") as version_file
     VERSION = version_file.read().strip()
 load_dotenv(ENV_FILE)
 
+EXIT_SUCCESS = 0
+EXIT_RUNTIME_ERROR = 1
+EXIT_USAGE_ERROR = 2
+MANIFEST_SCHEMA_VERSION = 1
+GEMINI_RETRY_ATTEMPTS = 3
+GEMINI_RETRY_BASE_DELAY = 2.0
+
+
+class ConfigurationError(RuntimeError):
+    """Fehler in Pflichtvariablen oder lokaler Konfiguration."""
+
+
+class ExternalServiceError(RuntimeError):
+    """Fehler eines externen Dienstes."""
+
+
+class RateLimitError(ExternalServiceError):
+    """Rate Limit oder temporäres Kontingentproblem."""
+
+
+class GenerationError(ExternalServiceError):
+    """Fehler bei der Medien- oder Skriptgenerierung."""
+
+
+class OutputValidationError(RuntimeError):
+    """Generierte Artefakte erfüllen die Output-QA nicht."""
+
+
+def _is_retryable_error(error):
+    message = str(error).lower()
+    return any(
+        token in message
+        for token in ("429", "rate limit", "timeout", "503", "temporarily unavailable")
+    )
+
+
+def _generate_content_with_retry(*, model, contents, config=None):
+    last_error = None
+    for attempt in range(1, GEMINI_RETRY_ATTEMPTS + 1):
+        try:
+            if config is None:
+                return client.models.generate_content(model=model, contents=contents)
+            return client.models.generate_content(
+                model=model, contents=contents, config=config
+            )
+        except Exception as exc:
+            last_error = exc
+            if not _is_retryable_error(exc) or attempt == GEMINI_RETRY_ATTEMPTS:
+                break
+            time.sleep(GEMINI_RETRY_BASE_DELAY * (2 ** (attempt - 1)))
+    raise ExternalServiceError(f"Gemini-Aufruf fehlgeschlagen: {last_error}") from last_error
+
 def _raise_env_error(message, missing=None):
     details = ""
     if missing:
@@ -297,7 +349,7 @@ class ProductVideoGenerator:
         """
         
         try:
-            response = client.models.generate_content(model=SCRIPT_MODEL, contents=prompt)
+            response = _generate_content_with_retry(model=SCRIPT_MODEL, contents=prompt)
             self.script_content = response.text
             
             # Speichere Skript zur Kontrolle
@@ -460,7 +512,7 @@ class ProductVideoGenerator:
         )
         
         try:
-            resp = client.models.generate_content(model=SCRIPT_MODEL, contents=prompt)
+            resp = _generate_content_with_retry(model=SCRIPT_MODEL, contents=prompt)
             # Einfaches Parsing
             text = resp.text.strip()
             # Falls Markdown Code-Blöcke enthalten sind
@@ -507,6 +559,8 @@ class ProductVideoGenerator:
         """Schreibt den standardisierten Status des Produktionslaufs."""
         normalized_topic = normalize_topic(self.topic)
         manifest = {
+            "schema_version": MANIFEST_SCHEMA_VERSION,
+            "generator": "productvideo",
             "topic": self.topic,
             "status": status,
             "started_at": started_at,
@@ -575,7 +629,9 @@ class ProductVideoGenerator:
             print("   ⚠️ ffprobe nicht verfügbar – überspringe Video-Stream-Prüfung.")
 
         if issues:
-            raise RuntimeError("Output-QA fehlgeschlagen: " + "; ".join(issues))
+            raise OutputValidationError(
+                "Output-QA fehlgeschlagen: " + "; ".join(issues)
+            )
 
 
 def _raise_input_error(reason):
