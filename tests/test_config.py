@@ -3,6 +3,7 @@ import pytest
 from config import ConfigurationError, load_config
 
 
+@pytest.mark.unit
 def test_load_config_resolves_relative_output_dir(tmp_path):
     values = {
         "GEMINI_API_KEY": "secret",
@@ -16,6 +17,7 @@ def test_load_config_resolves_relative_output_dir(tmp_path):
     assert config.output_dir == tmp_path / "finished_videos"
 
 
+@pytest.mark.unit
 def test_load_config_reports_missing_values():
     with pytest.raises(ConfigurationError, match="GEMINI_API_KEY"):
         load_config({}, "/tmp")

@@ -225,6 +225,23 @@ def test_normalize_topic_handles_special_chars(tmp_path, monkeypatch):
     assert normalized == "Smarte_Kaffee_Maschine"
 
 
+def test_generator_accepts_explicit_config(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    config = pv.load_config(
+        {
+            "GEMINI_API_KEY": "key",
+            "CHANNEL_NAME": "Injected Channel",
+            "CHANNEL_DESCRIPTION": "Injected Description",
+            "VIDEO_OUTPUT_DIR": "injected-output",
+            "VIDEO_MODEL": "injected-model",
+            "VIDEO_FALLBACK_MODEL": "injected-fallback",
+        },
+        tmp_path,
+    )
+    generator = pv.ProductVideoGenerator("TestProdukt", config=config)
+    assert generator.config is config
+
+
 def test_normalize_topic_falls_back_for_short_input(tmp_path, monkeypatch):
     pv = _load_module(tmp_path, monkeypatch)
 

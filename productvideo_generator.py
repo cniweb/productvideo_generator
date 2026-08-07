@@ -281,15 +281,17 @@ def _list_video_models():
     return video_models
 
 class ProductVideoGenerator:
-    def __init__(self, topic):
+    def __init__(self, topic, config=None):
         _initialize_config()  # Ensure configuration is loaded
+        self.config = config
         self.topic = topic
         self.script_content = ""
         self.video_path = ""
         self.script_path = ""
         self.metadata_path = ""
         self.run_manifest_path = ""
-        print(f"🚀 Starte Videoproduktion für Kanal '{CHANNEL_NAME}'")
+        channel_name = config.channel_name if config else CHANNEL_NAME
+        print(f"🚀 Starte Videoproduktion für Kanal '{channel_name}'")
         print(f"   Thema: '{topic}'")
 
     def _build_video_config(self):
@@ -722,7 +724,7 @@ if __name__ == "__main__":
     # Eingabe lesen (CLI-Argument > stdin > Prompt)
     topic = _resolve_topic_from_cli()
 
-    gen = ProductVideoGenerator(topic)
+    gen = ProductVideoGenerator(topic, config=load_config(os.environ, SCRIPT_DIR))
 
     try:
         gen.research_trends()
