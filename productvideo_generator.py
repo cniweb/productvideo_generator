@@ -589,6 +589,10 @@ class ProductVideoGenerator:
             "schema_version": MANIFEST_SCHEMA_VERSION,
             "generator": "productvideo",
             "topic": self.topic,
+            "runtime": {
+                "python": platform.python_version(),
+                "platform": platform.platform(),
+            },
             "status": status,
             "started_at": started_at,
             "finished_at": finished_at,
