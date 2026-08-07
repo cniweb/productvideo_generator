@@ -146,6 +146,51 @@ def test_generate_video_with_veo_writes_video(tmp_path, monkeypatch):
     assert video_path.read_bytes() == b"FAKE_VIDEO_BYTES"
 
 
+def test_wait_for_operation_times_out(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    pv.VIDEO_POLL_MAX_ATTEMPTS = 2
+    pv.VIDEO_POLL_INTERVAL_SECONDS = 0
+    pv.client = DummyClient(pv)
+    operation = DummyOperation(b"data", done=False)
+    gen = pv.ProductVideoGenerator("TestProdukt")
+    monkeypatch.setattr(pv.time, "sleep", lambda _: None)
+
+    try:
+        gen._wait_for_operation(operation)
+    except pv.GenerationError as exc:
+        assert "Zeitlimit" in str(exc)
+    else:
+        raise AssertionError("Polling sollte nach Maximalversuchen abbrechen")
+
+
+def test_fallback_failure_raises_generation_error(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    pv.VIDEO_FALLBACK_MODEL = "fallback"
+    gen = pv.ProductVideoGenerator("TestProdukt")
+
+    monkeypatch.setattr(
+        gen,
+        "_run_video_generation",
+        lambda **_: (_ for _ in ()).throw(RuntimeError("video failed")),
+    )
+    monkeypatch.setattr(pv, "_list_video_models", lambda: [])
+
+    try:
+        gen._retry_with_fallback_model("primary", "prompt")
+    except pv.GenerationError as exc:
+        assert "Primäres" in str(exc)
+    else:
+        raise AssertionError("Fallbackfehler sollte GenerationError auslösen")
+
+
+def test_atomic_json_write_replaces_target(tmp_path, monkeypatch):
+    pv = _load_module(tmp_path, monkeypatch)
+    target = tmp_path / "manifest.json"
+    pv._atomic_write_json(str(target), {"status": "completed"})
+    assert json.loads(target.read_text(encoding="utf-8"))["status"] == "completed"
+    assert list(tmp_path.glob(".tmp-*")) == []
+
+
 def test_generate_metadata_writes_json(tmp_path, monkeypatch):
     pv = _load_module(tmp_path, monkeypatch)
     pv.client = DummyClient(pv)
