@@ -290,6 +290,8 @@ class ProductVideoGenerator:
         self.script_path = ""
         self.metadata_path = ""
         self.run_manifest_path = ""
+        self.step_metrics = {}
+        self.retry_count = 0
         channel_name = config.channel_name if config else CHANNEL_NAME
         print(f"🚀 Starte Videoproduktion für Kanal '{channel_name}'")
         print(f"   Thema: '{topic}'")
@@ -610,6 +612,8 @@ class ProductVideoGenerator:
                 "metadata": self.metadata_path or None,
             },
             "error": error,
+            "steps": self.step_metrics,
+            "retries": self.retry_count,
         }
         validation = validate_manifest(manifest)
         if not validation.ok:
@@ -622,6 +626,7 @@ class ProductVideoGenerator:
     def validate_outputs(self):
         """Prüft alle erzeugten Productvideo-Artefakte vor dem Erfolgsstatus."""
         issues = []
+        warnings = []
         required_files = {
             "Skript-Datei": self.script_path,
             "Video-Datei": self.video_path,
@@ -661,12 +666,23 @@ class ProductVideoGenerator:
             if result.returncode != 0 or "video" not in result.stdout.split():
                 issues.append("Video-Datei enthält keinen lesbaren Videostream")
         elif not ffprobe:
-            print("   ⚠️ ffprobe nicht verfügbar – überspringe Video-Stream-Prüfung.")
+            warnings.append("ffprobe nicht verfügbar – Video-Stream-Prüfung übersprungen")
+            print(f"   ⚠️ {warnings[-1]}.")
 
-        if issues:
-            raise OutputValidationError(
-                "Output-QA fehlgeschlagen: " + "; ".join(issues)
-            )
+        from qa import QAResult
+
+        result = QAResult(
+            ok=not issues,
+            warnings=warnings,
+            errors=issues,
+            artifacts={
+                "script": self.script_path or None,
+                "video": self.video_path or None,
+                "metadata": self.metadata_path or None,
+            },
+        )
+        result.raise_if_failed()
+        return result
 
 
 def _raise_input_error(reason):
@@ -727,13 +743,33 @@ if __name__ == "__main__":
     gen = ProductVideoGenerator(topic, config=load_config(os.environ, SCRIPT_DIR))
 
     try:
+        step_started = time.time()
         gen.research_trends()
+        gen.step_metrics["trends"] = {
+            "status": "completed",
+            "duration_seconds": round(time.time() - step_started, 2),
+        }
+        step_started = time.time()
         gen.generate_sales_script()
+        gen.step_metrics["script"] = {
+            "status": "completed",
+            "duration_seconds": round(time.time() - step_started, 2),
+        }
         if not gen.script_content:
             raise RuntimeError("Kein Skript erzeugt.")
+        step_started = time.time()
         gen.generate_video_with_veo()
+        gen.step_metrics["video"] = {
+            "status": "completed",
+            "duration_seconds": round(time.time() - step_started, 2),
+        }
+        step_started = time.time()
         gen.generate_metadata()
         gen.validate_outputs()
+        gen.step_metrics["metadata_qa"] = {
+            "status": "completed",
+            "duration_seconds": round(time.time() - step_started, 2),
+        }
     except Exception as exc:
         gen.write_run_manifest(
             started_at=run_started_at,
