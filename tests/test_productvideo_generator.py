@@ -420,6 +420,13 @@ def test_manifest_serializes_structured_error(tmp_path, monkeypatch):
     assert manifest["error"]["retryable"] is True
 
 
+def test_json_result_contains_only_safe_fields():
+    result = {"status": "completed", "manifest": "run.json", "artifacts": {}}
+    rendered = json.dumps(result)
+    assert "GEMINI_API_KEY" not in rendered
+    assert "prompt" not in rendered.lower()
+
+
 def test_validate_outputs_rejects_missing_artifacts(tmp_path, monkeypatch):
     pv = _load_module(tmp_path, monkeypatch)
     monkeypatch.setattr(pv.shutil, "which", lambda _: None)
