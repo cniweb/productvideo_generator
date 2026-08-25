@@ -216,3 +216,4 @@ finished_videos/
 
 # macOS system files
 .DS_Store
+.DS_Store/
