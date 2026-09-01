@@ -5,6 +5,7 @@
   "schedule": ["before 7am on monday"],
   "labels": ["dependencies"],
   "prConcurrentLimit": 5,
+  "prHourlyLimit": 5,
   "rangeStrategy": "pin",
   "packageRules": [
     {
