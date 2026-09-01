@@ -13,7 +13,8 @@
     },
     {
       "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions"
+      "groupName": "GitHub Actions",
+      "rangeStrategy": "auto"
     }
   ]
 }
