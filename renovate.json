@@ -15,6 +15,12 @@
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
       "rangeStrategy": "auto"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest"],
+      "groupName": "GitHub Actions digests",
+      "pinDigests": true
     }
   ]
 }
