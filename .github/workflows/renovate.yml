@@ -6,7 +6,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: renovate
@@ -25,4 +27,4 @@ jobs:
           LOG_LEVEL: info
           RENOVATE_REPOSITORIES: ${{ github.repository }}
         with:
-          token: ${{ secrets.RENOVATE_TOKEN }}
+          token: ${{ github.token }}
