@@ -36,6 +36,7 @@ None — discussion stayed within phase scope
 | CLI-01 | Nutzer kann Produkt/Topic per CLI-Argument oder Prompt eingeben | CLI-Parsing-Flow (Argument > stdin > Prompt) mit validiertem Input und Beispiel-Topic im Prompt. |
 | CLI-03 | Pflicht-ENVs werden validiert und klar gemeldet (.env/OS) | Fail-fast ENV-Check mit Liste fehlender Keys, Beispielsnippet und naechstem Schritt. |
 | CLI-04 | Output-Dateien folgen konsistenter Namens- und Normalisierungslogik | Zentrale Normalisierung (Topic -> Dateiname) fuer Skript, Video, Metadaten. |
+
 </phase_requirements>
 
 ## Summary
@@ -51,12 +52,14 @@ Die Normalisierung der Dateinamen sollte als einzelne Funktion umgesetzt werden 
 ## Standard Stack
 
 ### Core
+
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
 | Python | 3.10+ (CI 3.13) | CLI, Dateisystem, IO | Bereits Projektbasis; keine neuen Dependencies noetig. |
 | python-dotenv | current (requirements.txt) | .env laden | Bereits im Code; standard fuer .env Workflows. |
 
 ### Supporting
+
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
 | argparse (stdlib) | Python stdlib | CLI-Argumente parsen | Wenn CLI-Argumente strukturiert und erweiterbar sein sollen. |
@@ -64,6 +67,7 @@ Die Normalisierung der Dateinamen sollte als einzelne Funktion umgesetzt werden 
 | re/unicodedata (stdlib) | Python stdlib | Dateinamen normalisieren | Wenn Sonderzeichen/Whitespace bereinigt werden. |
 
 ### Alternatives Considered
+
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
 | argparse | click/typer | Extra Abhaengigkeiten; nicht noetig fuer Phase 1. |
